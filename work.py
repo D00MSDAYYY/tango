@@ -5,7 +5,44 @@ from tango import DevState
 from tango.server import Device, attribute, command
 from tango.server import class_property, device_property
 
-class BUK_M(Device):
+from pymodbus.client import ModbusTcpClient
+from pymodbus.exceptions import ModbusException
+from pymodbus.pdu import ExceptionResponse
+
+class _BUK_M(Device):
+	host = device_property(dtype=str)
+	port = class_property(dtype=int, default_value=502)
+	modbus_id = device_property(dtype=int)
+
+	def connect_to_modbus(self):
+		super().init_device()
+		self.set_state(DevState.INIT)
+		
+		# Инициализация Modbus клиента
+		self.modbus_client = ModbusTcpClient(
+			host=self.host,
+			port=self.port,
+			timeout=2.0,
+			retries=3
+		)
+
+		# Подключение к Modbus устройству
+		is_connected = False
+		try:
+			is_connected =  self.modbus_client.connect()
+		except Exception as e:
+			self.error_stream(f"Ошибка Modbus подключения: {e}")
+		
+		# Попытка подключения
+		if is_connected:
+			self.set_state(DevState.ON)
+			self.info_stream(f"Успешное подключение к {self.host}:{self.port}")
+		else:
+			self.set_state(DevState.FAULT)
+			self.error_stream(f"Ошибка подключения к {self.host}:{self.port}")
+
+		
+class BUK_M(_BUK_M): # ModbusID 0
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
 
 # ########################################################################################
@@ -15,7 +52,7 @@ class BUK_M(Device):
 		doc="Статусное слово"
 	)
 	@status.read
-	def status_read(self):
+	def _(self):
 		status_bits = "110101011010110" # TODO
 
 		response_str = ""
@@ -82,7 +119,7 @@ class BUK_M(Device):
 		doc="Слово ошибок"
 	)
 	@errors.read
-	def errors_read(self):
+	def _(self):
 		errors_bits = "110101011010110" # TODO
 
 		response_str = ""
@@ -123,13 +160,9 @@ class BUK_M(Device):
 
 
 
-class BUK_M1(BUK_M):
+class BUK_M1_CORRECTOR_CURRENT_SUPPLIER(BUK_M): # ModbusID 1-8
 
-	DEVICE_CLASS_DESCRIPTION = "БУК-М1"
-
-	host = device_property(dtype=str)
-	port = class_property(dtype=int, default_value=502)
-	modbus_id = device_property(dtype=int)
+	DEVICE_CLASS_DESCRIPTION = "Источники тока корректоров"
 
 # ########################################################################################
 	status = attribute(
@@ -138,7 +171,7 @@ class BUK_M1(BUK_M):
 		doc="Статус источника тока"
 	)
 	@status.read
-	def status_read(self):
+	def _(self):
 		bit_0 = 1 # TODO
 		bit_1 = 1 # TODO
 
@@ -159,6 +192,8 @@ class BUK_M1(BUK_M):
 			response_str += ", инициализирован"
 		else:
 			response_str += ", неинициализирован"
+		return response_str
+	
 # ########################################################################################
 	error_warning = attribute(
 		label="error_warning",
@@ -166,8 +201,9 @@ class BUK_M1(BUK_M):
 		doc="Значение кода ошибки/предупреждения"
 	)
 	@error_warning.read
-	def error_warning_read(self):
+	def _(self):
 		return 1 # TODO
+	
 # ########################################################################################
 	output_current_float = attribute(
 		label="output_current_float",
@@ -175,7 +211,7 @@ class BUK_M1(BUK_M):
 		doc="Значение выходного тока (float)"
 	)
 	@output_current_float.read
-	def output_current_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 	load_current_float = attribute(
@@ -184,7 +220,7 @@ class BUK_M1(BUK_M):
 		doc="Значение тока в нагрузке (float)"
 	)
 	@load_current_float.read
-	def load_current_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 	load_voltage_float = attribute(
@@ -193,7 +229,7 @@ class BUK_M1(BUK_M):
 		doc="Значение напряжения в нагрузке (float)"
 	)
 	@load_voltage_float.read
-	def load_voltage_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 	temp_modulator_transistors_float = attribute(
@@ -202,7 +238,7 @@ class BUK_M1(BUK_M):
 		doc="Значение температуры транзисторов модулятора (float)"
 	)
 	@temp_modulator_transistors_float.read
-	def temp_modulator_transistors_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 	temp_throttle_float = attribute(
@@ -211,7 +247,7 @@ class BUK_M1(BUK_M):
 		doc="Значение температуры дросселя (float)"
 	)
 	@temp_throttle_float.read
-	def temp_throttle_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 	setpoint_output_current_float = attribute(
@@ -220,22 +256,101 @@ class BUK_M1(BUK_M):
 		doc="Значение уставки выходного тока (float)"
 	)
 	@setpoint_output_current_float.read
-	def setpoint_output_current_float_read(self):
+	def _(self):
 		return 1 # TODO
 # ########################################################################################
 # ########################################################################################
 
+class BUK_M1_M2_IO(Device): # ModbusID 17
+	error_warning = attribute(
+		label="error_warning",
+		dtype=str,
+		doc="Значение кода ошибки/предупреждения"
+	)
+	@error_warning.read
+	def _(self):
+		return 1 # TODO
+# ########################################################################################
+	inputs_status = attribute(
+		label="inputs_status",
+		dtype=str,
+		doc="Состояние входов"
+	)
+	@inputs_status.read
+	def _(self):
+		return 1 # TODO
+# ########################################################################################
+	outputs_status = attribute(
+		label="outputs_status",
+		dtype=str,
+		doc="Состояние выходов"
+	)
+	@outputs_status.read
+	def _(self):
+		return 1 # TODO
+# ########################################################################################
+# ########################################################################################
 
+class BUK_M2_HIGH_FREQUENCY(Device): # ModbusID 1
+	DEVICE_CLASS_DESCRIPTION = "Высокоточные АЦП-ЦАП (БУК-М2)"
 
+# ########################################################################################
+	error_warning = attribute(
+		label="error_warning",
+		dtype=str,
+		doc="Значение кода ошибки/предупреждения"
+	)
+	@error_warning.read
+	def _(self):
+		return 1 # TODO
 
+# ########################################################################################
+	normalized_ADC1_readings = attribute(
+		label="normalized_ADC1_readings",
+		dtype=float,
+		doc="Нормированные показания АЦП 1"
+	)
+	@normalized_ADC1_readings.read
+	def _(self):
+		return 1 # TODO
+	
+# ########################################################################################
+	normalized_ADC2_readings = attribute(
+		label="normalized_ADC2_readings",
+		dtype=float,
+		doc="Нормированные показания АЦП 2"
+	)
+	@normalized_ADC2_readings.read
+	def _(self):
+		return 1 # TODO
 
+# ########################################################################################
+	normalized_ADC3_readings = attribute(
+		label="normalized_ADC3_readings",
+		dtype=float,
+		doc="Нормированные показания АЦП 3"
+	)
+	@normalized_ADC3_readings.read
+	def _(self):
+		return 1 # TODO
 
+# ########################################################################################
+	normalized_value_DAC_setting = attribute(
+		label="normalized_value_DAC_setting",
+		dtype=float,
+		doc="Нормированное значение текущей уставки ЦАП"
+	)
+	@normalized_value_DAC_setting.read
+	def _(self):
+		return 1 # TODO
+	
+# ########################################################################################
+	temp_ADC_board = attribute(
+		label="temp_ADC_board",
+		dtype=float,
+		doc="Значение температуры платы АЦП"
+	)
+	@temp_ADC_board.read
+	def _(self):
+		return 1 # TODO
 
-
-
-
-
-
-
-if __name__ == "__main__":
-	PowerSupply.run_server()
