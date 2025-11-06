@@ -110,9 +110,14 @@ class BUK_M(_BUK_M): # ModbusID 0
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
 
 	class WatchDog:
-		timer : threading.Timer
 		interval : int 
 		callback = None
+		
+		def __init__(self, interval, callback):
+			self.interval = interval
+			self.callback = callback
+
+			self._timer = threading.Timer(self.interval, self.callback)
 
 	_inner_watch_dog : WatchDog # периодически посылает запросы по модбас
 	_outer_watch_dog : WatchDog # периодически проверяет, давно ли клиенты просили присылать данные (если давно, то отписывает)
@@ -212,7 +217,11 @@ class BUK_M(_BUK_M): # ModbusID 0
 
 	@command
 	def enable_pulse_mode(self):
-		return self._do_command(self._REGISTER_COMMAND_PULSE, self._CODE_ENABLE_PULSE_MODE)
+		is_success = self._do_command(self._REGISTER_COMMAND_PULSE, self._CODE_ENABLE_PULSE_MODE)
+
+		if is_success and not self._inner_watch_dog :
+			self._inner_watch_dog = self.WatchDog(interval=30, callback=lambda: ( self.enable_pulse_mode() ))
+		return is_success
 	
 # ########################################################################################
 	@command
