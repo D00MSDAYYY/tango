@@ -14,6 +14,9 @@ class _BUK_M(Device):
 	port = class_property(dtype=int, default_value=502)
 	modbus_id = device_property(dtype=int)
 
+	_OFFSET_INPUT_REGISTER = 300001
+	_OFFSET_HOLDING_REGISTER = 400001
+
 # ########################################################################################
 	def init_device(self):
 		super().init_device()
@@ -45,21 +48,19 @@ class _BUK_M(Device):
 			self.error_stream(f"Ошибка подключения к {self.host}:{self.port}")
 
 # ########################################################################################
-	def _read_input_registers(self, address, count=1, unit=None):
+	def _read_input_registers(self, address, count=1):
 		"""Чтение input registers (3xxxx)"""
-		if unit is None:
-			unit = self.modbus_id
-			
+
 		try:
 			# ПРЕОБРАЗОВАНИЕ 1-based -> 0-based
 			# Документация: 300001, 300002, 300003...
 			# pymodbus:       0,      1,      2...
-			modbus_address = address - 300001
+			modbus_address = address - self._OFFSET_INPUT_REGISTER
 			
 			response = self.modbus_client.read_input_registers(
 				address=modbus_address,  # 0-based адрес
 				count=count,
-				device_id=unit
+				device_id=self.modbus_id
 			)
 			return self._process_response(response)
 		except ModbusException as e:
@@ -70,10 +71,12 @@ class _BUK_M(Device):
 	def _read_holding_registers(self, address, count, unit=0):
 		"""Чтение holding registers (4xxxx)"""
 		try:
-			response = self.client.read_holding_registers(
-				address=address - 400001,  # pymodbus использует 0-based
+			modbus_address = address - self._OFFSET_HOLDING_REGISTER
+
+			response = self.modbus_client.read_holding_registers(
+				address=modbus_address,  # pymodbus использует 0-based
 				count=count,
-				slave=unit
+				device_id=self.modbus_id
 			)
 			return self._process_response(response)
 		except ModbusException as e:
@@ -99,53 +102,98 @@ class _BUK_M(Device):
 class BUK_M(_BUK_M): # ModbusID 0
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
 
+	_REGISTER_STATUS_WORD = 300001
+	_REGISTER_ERROR_WORD = 300002
+	_REGISTER_ACCIDENT_WORD = 300003
+	_REGISTER_COMMAND_WORD = 400001
+	_REGISTER_COMMAND_PULSE = 400002
+
 	def init_device(self):
 		super().init_device()
-		self.set_state(DevState.INIT)
-		self.connect_to_modbus()
 
-		print("testing")
-		status_word = self._read_input_registers(300001,1)[0]
-		binary_str = format(status_word, '016b') 
-		print(binary_str)
+		print("=== ТЕСТ status.getter ===")
+
+		print(self.status_read())
+
+
 # ########################################################################################
-	status = attribute(
-		label="status",
-		dtype=str,
-		doc="Статусное слово"
-	)
-	@status.read
-	def _(self):
-		status_bits = format(self._read_input_registers(300001,1)[0], '016b') 
+	# status = attribute(
+	# 	label="status",
+	# 	dtype=str,
+	# 	doc="Статусное слово"
+	# )
+	# @status.getter 
+	def status_read(self):
+		result = self._read_input_registers(300001, 1)
 
-		response_str = ""
+		if result is None:
+			return "Ошибка чтения статуса"
+		
+		status_bits = format(result[0], '016b')
+		print(status_bits)
+		status_map = {
+			0: "Инициализация контроллера",
+			1: "Загружен файл конфигурации",
+			2: "Настройка оборудования",
+			3: "Все системы инициализированы",
+			4: "Циклограмма загружается",
+			5: "Циклограмма получена и обработана",
+			6: "Циклограмма выполняется",
+			15: "Запись команд запрещена"
+		}
+		
+		for bit_index, message in status_map.items():
+			if status_bits[bit_index] == '1':
+				return message
+		
+		return "Статус не определен"
+	
 
-		if status_bits[0]:
-			response_str = "Инициализация контроллера"
-		if status_bits[1]:
-			response_str = "Загружен файл конфигурации"
-		if status_bits[2]:
-			response_str = "Настройка оборудования"
-		if status_bits[3]:
-			response_str = "Все системы инициализированы"
-		if status_bits[4]:
-			response_str = "Циклограмма загружается"
-		if status_bits[5]:
-			response_str = "Циклограмма получена и обработана"
-		if status_bits[6]:
-			response_str = "Циклограмма выполняется"
-		if status_bits[15]:
-			response_str = "Запись команд запрещена"
-
-		return response_str
 # ########################################################################################
+	def _do_command(self, command_code ):
+		response = self.modbus_client.write_register(
+				address=self._REGISTER_COMMAND_WORD - self._OFFSET_HOLDING_REGISTER,
+				value=command_code,
+				device_id=self.modbus_id
+			)
+		return self._process_response(response)
+	
+	_AUX_16_ZEROS_LIST = ['0'] * 16
+
+	_BIN_LIST_STOP = 	_AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_STOP[1]	= '1'
+
+	_BIN_LIST_GET_CYCLOGRAMM = _AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_GET_CYCLOGRAMM[2] = '1'
+
+	_BIN_LIST_CANCEL_CYCLOGRAMM = _AUX_16_ZEROS_LIST.copy() 		
+	_BIN_LIST_CANCEL_CYCLOGRAMM[3] = '1'				
+
+	_BIN_LIST_RESET_INITIALIZATION = 	_AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_RESET_INITIALIZATION[5] = '1'
+
+	_BIN_LIST_ACKNOWLEDGE_ERROR = _AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_ACKNOWLEDGE_ERROR[6] = '1'
+						   
+	_BIN_LIST_ACKNOWLEDGE_ACCIDENT = 	_AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_ACKNOWLEDGE_ACCIDENT[7] = '1'
+
+	_BIN_LIST_RESET_INITIALIZATION_INCOMPLETE = _AUX_16_ZEROS_LIST.copy() 	
+	_BIN_LIST_RESET_INITIALIZATION_INCOMPLETE[13] = '1'
+
+	def _bin_list_to_int(bin_list):
+		return int(''.join(bin_list), 2)
+
+
 	@command(doc_in="???#TODO")
 	def stop(self):
-		pass # TODO
+		return self._do_command(self._bin_list_to_int(self._BIN_LIST_STOP))
+		
 # ########################################################################################
 	@command
 	def get_cyclogram(self):
-		pass # TODO
+		return self._do_command(self._bin_list_to_int(self._BIN_LIST_GET_CYCLOGRAMM))
+	
 # ########################################################################################
 	@command
 	def cancel_cyclogram(self):
@@ -182,7 +230,7 @@ class BUK_M(_BUK_M): # ModbusID 0
 		doc="Слово ошибок"
 	)
 	@errors.read
-	def _(self):
+	def errors_read(self):
 		errors_bits = "110101011010110" # TODO
 
 		response_str = ""
@@ -223,11 +271,11 @@ class BUK_M(_BUK_M): # ModbusID 0
 
 
 if __name__ == "__main__":
-	_BUK_M.host = "10.10.9.89"
-	_BUK_M.port = 502
-	_BUK_M.modbus_id = 0
+	BUK_M.host = "10.10.9.89"
+	BUK_M.port = 502
+	BUK_M.modbus_id = 0
 
-	_BUK_M.run_server()
+	BUK_M.run_server()
 
 
 
