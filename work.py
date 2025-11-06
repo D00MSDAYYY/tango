@@ -14,10 +14,14 @@ class _BUK_M(Device):
 	port = class_property(dtype=int, default_value=502)
 	modbus_id = device_property(dtype=int)
 
-	def connect_to_modbus(self):
+# ########################################################################################
+	def init_device(self):
 		super().init_device()
 		self.set_state(DevState.INIT)
-		
+		self.connect_to_modbus()
+
+# ########################################################################################
+	def connect_to_modbus(self):
 		# Инициализация Modbus клиента
 		self.modbus_client = ModbusTcpClient(
 			host=self.host,
@@ -25,14 +29,13 @@ class _BUK_M(Device):
 			timeout=2.0,
 			retries=3
 		)
-
 		# Подключение к Modbus устройству
 		is_connected = False
 		try:
 			is_connected =  self.modbus_client.connect()
 		except Exception as e:
 			self.error_stream(f"Ошибка Modbus подключения: {e}")
-		
+
 		# Попытка подключения
 		if is_connected:
 			self.set_state(DevState.ON)
@@ -41,10 +44,70 @@ class _BUK_M(Device):
 			self.set_state(DevState.FAULT)
 			self.error_stream(f"Ошибка подключения к {self.host}:{self.port}")
 
+# ########################################################################################
+	def _read_input_registers(self, address, count=1, unit=None):
+		"""Чтение input registers (3xxxx)"""
+		if unit is None:
+			unit = self.modbus_id
+			
+		try:
+			# ПРЕОБРАЗОВАНИЕ 1-based -> 0-based
+			# Документация: 300001, 300002, 300003...
+			# pymodbus:       0,      1,      2...
+			modbus_address = address - 300001
+			
+			response = self.modbus_client.read_input_registers(
+				address=modbus_address,  # 0-based адрес
+				count=count,
+				device_id=unit
+			)
+			return self._process_response(response)
+		except ModbusException as e:
+			self.error_stream(f"Modbus ошибка чтения {address}: {e}")
+			return None
 		
+# ########################################################################################
+	def _read_holding_registers(self, address, count, unit=0):
+		"""Чтение holding registers (4xxxx)"""
+		try:
+			response = self.client.read_holding_registers(
+				address=address - 400001,  # pymodbus использует 0-based
+				count=count,
+				slave=unit
+			)
+			return self._process_response(response)
+		except ModbusException as e:
+			print(f"Modbus ошибка: {e}")
+			return None
+
+# ########################################################################################
+	def _process_response(self, response):
+		"""Обработка ответа Modbus"""
+
+		if response.isError():
+			self.error_stream(f"Modbus ошибка в ответе: {response}")
+			return None
+		elif isinstance(response, ExceptionResponse):
+			self.error_stream(f"Modbus exception: {response}")
+			return None
+		else:
+			return response.registers if hasattr(response, 'registers') else None
+		
+
+# ########################################################################################
+# ########################################################################################
 class BUK_M(_BUK_M): # ModbusID 0
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
 
+	def init_device(self):
+		super().init_device()
+		self.set_state(DevState.INIT)
+		self.connect_to_modbus()
+
+		print("testing")
+		status_word = self._read_input_registers(300001,1)[0]
+		binary_str = format(status_word, '016b') 
+		print(binary_str)
 # ########################################################################################
 	status = attribute(
 		label="status",
@@ -53,7 +116,7 @@ class BUK_M(_BUK_M): # ModbusID 0
 	)
 	@status.read
 	def _(self):
-		status_bits = "110101011010110" # TODO
+		status_bits = format(self._read_input_registers(300001,1)[0], '016b') 
 
 		response_str = ""
 
@@ -159,198 +222,14 @@ class BUK_M(_BUK_M): # ModbusID 0
 
 
 
+if __name__ == "__main__":
+	_BUK_M.host = "10.10.9.89"
+	_BUK_M.port = 502
+	_BUK_M.modbus_id = 0
 
-class BUK_M1_CORRECTOR_CURRENT_SUPPLIER(BUK_M): # ModbusID 1-8
+	_BUK_M.run_server()
 
-	DEVICE_CLASS_DESCRIPTION = "Источники тока корректоров"
 
-# ########################################################################################
-	status = attribute(
-		label="status",
-		dtype=str,
-		doc="Статус источника тока"
-	)
-	@status.read
-	def _(self):
-		bit_0 = 1 # TODO
-		bit_1 = 1 # TODO
 
-		response_str = ""
 
-		if ~bit_1 and ~bit_0:
-			response_str = "отключен"
-		if ~bit_1 and bit_0:
-			response_str = "штатная работа"
-		if bit_1 and ~bit_0:
-			response_str = "останов в безопасном режиме"
-		if bit_1 and bit_0:
-			response_str = "режим прямого управления ШИМ"
-		
-		bit_2 = 1 # TODO
-
-		if bit_2:
-			response_str += ", инициализирован"
-		else:
-			response_str += ", неинициализирован"
-		return response_str
-	
-# ########################################################################################
-	error_warning = attribute(
-		label="error_warning",
-		dtype=str,
-		doc="Значение кода ошибки/предупреждения"
-	)
-	@error_warning.read
-	def _(self):
-		return 1 # TODO
-	
-# ########################################################################################
-	output_current_float = attribute(
-		label="output_current_float",
-		dtype=float,
-		doc="Значение выходного тока (float)"
-	)
-	@output_current_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	load_current_float = attribute(
-		label="load_current_float",
-		dtype=float,
-		doc="Значение тока в нагрузке (float)"
-	)
-	@load_current_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	load_voltage_float = attribute(
-		label="load_voltage_float",
-		dtype=float,
-		doc="Значение напряжения в нагрузке (float)"
-	)
-	@load_voltage_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	temp_modulator_transistors_float = attribute(
-		label="temp_modulator_transistors_float",
-		dtype=float,
-		doc="Значение температуры транзисторов модулятора (float)"
-	)
-	@temp_modulator_transistors_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	temp_throttle_float = attribute(
-		label="temp_throttle_float",
-		dtype=float,
-		doc="Значение температуры дросселя (float)"
-	)
-	@temp_throttle_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	setpoint_output_current_float = attribute(
-		label="setpoint_output_current_float",
-		dtype=float,
-		doc="Значение уставки выходного тока (float)"
-	)
-	@setpoint_output_current_float.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-# ########################################################################################
-
-class BUK_M1_M2_IO(Device): # ModbusID 17
-	error_warning = attribute(
-		label="error_warning",
-		dtype=str,
-		doc="Значение кода ошибки/предупреждения"
-	)
-	@error_warning.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	inputs_status = attribute(
-		label="inputs_status",
-		dtype=str,
-		doc="Состояние входов"
-	)
-	@inputs_status.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-	outputs_status = attribute(
-		label="outputs_status",
-		dtype=str,
-		doc="Состояние выходов"
-	)
-	@outputs_status.read
-	def _(self):
-		return 1 # TODO
-# ########################################################################################
-# ########################################################################################
-
-class BUK_M2_HIGH_FREQUENCY(Device): # ModbusID 1
-	DEVICE_CLASS_DESCRIPTION = "Высокоточные АЦП-ЦАП (БУК-М2)"
-
-# ########################################################################################
-	error_warning = attribute(
-		label="error_warning",
-		dtype=str,
-		doc="Значение кода ошибки/предупреждения"
-	)
-	@error_warning.read
-	def _(self):
-		return 1 # TODO
-
-# ########################################################################################
-	normalized_ADC1_readings = attribute(
-		label="normalized_ADC1_readings",
-		dtype=float,
-		doc="Нормированные показания АЦП 1"
-	)
-	@normalized_ADC1_readings.read
-	def _(self):
-		return 1 # TODO
-	
-# ########################################################################################
-	normalized_ADC2_readings = attribute(
-		label="normalized_ADC2_readings",
-		dtype=float,
-		doc="Нормированные показания АЦП 2"
-	)
-	@normalized_ADC2_readings.read
-	def _(self):
-		return 1 # TODO
-
-# ########################################################################################
-	normalized_ADC3_readings = attribute(
-		label="normalized_ADC3_readings",
-		dtype=float,
-		doc="Нормированные показания АЦП 3"
-	)
-	@normalized_ADC3_readings.read
-	def _(self):
-		return 1 # TODO
-
-# ########################################################################################
-	normalized_value_DAC_setting = attribute(
-		label="normalized_value_DAC_setting",
-		dtype=float,
-		doc="Нормированное значение текущей уставки ЦАП"
-	)
-	@normalized_value_DAC_setting.read
-	def _(self):
-		return 1 # TODO
-	
-# ########################################################################################
-	temp_ADC_board = attribute(
-		label="temp_ADC_board",
-		dtype=float,
-		doc="Значение температуры платы АЦП"
-	)
-	@temp_ADC_board.read
-	def _(self):
-		return 1 # TODO
 
