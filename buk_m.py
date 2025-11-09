@@ -1,39 +1,54 @@
 import threading
 import socket 
 
-from _buk_modbus import _BUK_MODBUS
+from _tango_modbus import _TANGO_MODBUS
 from tango.server import class_property, command, attribute
 from abc import abstractmethod
 
-class BUK_M(_BUK_MODBUS): 
-	pulse_udp_port =  class_property(dtype=int, default_value=4000)
-	_udp_socket = None
-
-	_is_listening : bool
-	_listener_thread : threading.Thread
-
+class BUK_M(_TANGO_MODBUS): 
 # ########################################################################################
-	_REGISTER_STATUS_WORD = 300001
+	_REGISTER_STATUS_WORD = 300001 # TODO Final const
 	_REGISTER_ERROR_WORD = 300002
 	_REGISTER_ACCIDENT_WORD = 300003
 	_REGISTER_COMMAND_WORD = 400001
-	_REGISTER_COMMAND_PULSE = 400002
+	_REGISTER_PULSE_MODE = 400002
+
+	_CODE_STOP = 1 << 1
+	_CODE_GET_CYCLOGRAMM = 1 << 2
+	_CODE_CANCEL_CYCLOGRAMM = 1 << 3
+	_CODE_RESET_INITIALIZATION = 1 << 5
+	_CODE_ACKNOWLEDGE_ERROR = 1 << 6
+	_CODE_ACKNOWLEDGE_ACCIDENT = 1 << 7
+	_CODE_RESET_INITIALIZATION_INCOMPLETE = 1 << 13
+
+	_CODE_PULSE_MODE_ENABLE = 1
+	_CODE_PULSE_MODE_DISABLE = 2
+	_PULSE_MODE_INNER_WATCHDOG_INTERVAL_SEC = 30
+	_PULSE_MODE_OUTER_WATCHDOG_INTERVAL_SEC = 100
 
 # ########################################################################################
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
+	pulse_udp_port =  class_property(dtype=int, default_value=4000)
 
-	_inner_watchdog_thread : threading.Timer # периодически посылает запросы по модбас
-	_outer_watch_dog : threading.Timer # периодически проверяет, давно ли клиенты просили присылать данные (если давно, то отписывает)
+	_udp_socket : socket.socket
+	_is_listening : bool = False
+	_udp_listener_thread : threading.Thread
+	_udp_listener_lock = threading.Lock()
+
+	_inner_watchdog_timer : threading.Timer # периодически посылает запросы по модбас
+	_outer_watchdog_timer : threading.Timer # периодически проверяет, давно ли клиенты просили присылать данные (если давно, то отписывает)
 
 # ########################################################################################
 	def init_device(self):
+		print('начало инициализации BUK_M')
 		super().init_device()
+		print('конец инициализации BUK_M')
 
 # ########################################################################################
 	# status = attribute( #TODO
 	# 	label="status",
 	# 	dtype=str,
-	# 	doc="Статусное слово"
+	# 	doc="Статус устройства"
 	# )
 	# @status.getter 
 	def status_read(self):
@@ -43,7 +58,9 @@ class BUK_M(_BUK_MODBUS):
 			return "Ошибка чтения слова статуса"
 		
 		status_bits = format(result[0], '016b')[::-1]
+
 		print(status_bits)
+
 		status_map = {
 			0: "Инициализация контроллера",
 			1: "Загружен файл конфигурации",
@@ -63,120 +80,150 @@ class BUK_M(_BUK_MODBUS):
 	
 
 # ########################################################################################
-	def _do_command(self, addr,  command_code ):
+	def _do_command(self, addr,  command_code):
 		self.modbus_client.write_register(
 				address= addr - self._OFFSET_HOLDING_REGISTER,
 				value=command_code,
 				device_id=self.modbus_id
 			)
-	
-	_BIN_CODE_STOP = 1 << 1
-	_BIN_CODE_GET_CYCLOGRAMM = 1 << 2
-	_BIN_CODE_CANCEL_CYCLOGRAMM = 1 << 3
-	_BIN_CODE_RESET_INITIALIZATION = 1 << 5
-	_BIN_CODE_ACKNOWLEDGE_ERROR = 1 << 6
-	_BIN_CODE_ACKNOWLEDGE_ACCIDENT = 1 << 7
-	_BIN_CODE_RESET_INITIALIZATION_INCOMPLETE = 1 << 13
 
-	@command(doc_in="???#TODO")
+	@command(doc_in="#TODO")
 	def stop(self):
-		return self._do_command(self._BIN_CODE_STOP)
+		return self._do_command(self._CODE_STOP)
 		
 # ########################################################################################
 	@command
 	def get_cyclogram(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_GET_CYCLOGRAMM)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_GET_CYCLOGRAMM)
 	
 # ########################################################################################
 	@command
 	def cancel_cyclogram(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_CANCEL_CYCLOGRAMM)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_CANCEL_CYCLOGRAMM)
 	
 # ########################################################################################
 	@command
 	def reset_initialization(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_RESET_INITIALIZATION)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION)
 	
 # ########################################################################################
 	@command
 	def acknowledge_error(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_ACKNOWLEDGE_ERROR)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ERROR)
 	
 # ########################################################################################
 	@command
 	def acknowledge_accident(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_ACKNOWLEDGE_ACCIDENT)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ACCIDENT)
 	
 # ########################################################################################
 	@command
 	def reset_initialization_incomplete(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._BIN_CODE_RESET_INITIALIZATION_INCOMPLETE)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE)
 	
 # ########################################################################################
-
-	_CODE_ENABLE_PULSE_MODE = 1
-	_CODE_DISABLE_PULSE_MODE = 2
-	_INNER_WATCHDOG_INTERVAL_SEC = 30
-	_OUTER_WATCHDOG_INTERVAL_SEC = 100
-
 	@abstractmethod
-	def _process_pulse_packet(self, data: bytes, addr: tuple):
+	def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
 		pass
 
+# ########################################################################################
 	def _udp_listener(self):
-		print('in listener')
 		self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self._udp_socket.settimeout(1.0)
 		
 		try:
-			self._udp_socket.bind((self.port, self.pulse_udp_port))  # Порт для Pulse режима
+			self._udp_socket.bind((self.host, self.pulse_udp_port))
 			
 			while self._is_listening:
 				try:
 					data, addr = self._udp_socket.recvfrom(1024)
-					self._process_pulse_packet(data, addr)
+					self._process_pulse_mode_packet(data, addr)
+
 				except socket.timeout:
 					continue
-				except Exception as e:
-					self.error_stream(f"Ошибка UDP: {e}")
-					
-		except Exception as e:
-			self.error_stream(f"Ошибка UDP socket: {e}")
-		finally:
-			if self._udp_socket:
-				self._udp_socket.close()
 
+		except Exception as e:
+			if self._is_listening:
+				print(f"Исключение в _udp_listener : {e}")
+
+		finally:
+			try:
+				self._udp_socket.shutdown()
+				self._udp_socket.close()
+				print(f"_udp_socket {self.host}:{self.port} закрыт")
+			except:
+				pass
+
+# ########################################################################################
+	def _start_udp_listener(self):
+		"""Запуск UDP listener в отдельном потоке"""
+		with self._udp_listener_lock:
+			if self._is_listening and self._udp_listener_thread and self._udp_listener_thread.is_alive():
+				print("_udp_listener_thread уже запущен")
+				return
+				
+			self._is_listening = True
+			self._udp_listener_thread = threading.Thread(target=self._udp_listener, daemon=True)
+			self._udp_listener_thread.start()
+
+			if self._inner_watchdog_timer:
+				self._inner_watchdog_timer.cancel()
+
+			def _get_listening_status(self):
+				'''Безопасное чтение статуса'''
+				with self._listener_lock:
+					return self._is_listening
+
+			self._inner_watchdog_timer = threading.Timer(
+				interval=self._INNER_WATCHDOG_INTERVAL_SEC, 
+				function=lambda: self.enable_pulse_mode() if _get_listening_status() else None #TODO потенциальная гонка данных за _is_listening
+			)
+			self._inner_watchdog_timer.daemon = True
+			self._inner_watchdog_timer.start()
+			print("_inner_watchdog_timer запущен")
+
+		print("_udp_listener_thread запущен")
+
+# ########################################################################################
+	def _stop_udp_listener(self):
+		'''Остановка UDP listener'''
+		with self._listener_lock:
+			self._is_listening = False
+
+			if self._udp_listener_thread and self._udp_listener_thread.is_alive():
+				self._udp_listener_thread.join(timeout=2.0)
+			print("_udp_listener_thread остановлен")
+
+# ########################################################################################
 	@command
 	def enable_pulse_mode(self):
-		self._do_command(self._REGISTER_COMMAND_PULSE, self._CODE_ENABLE_PULSE_MODE)
+		self._do_command(self._REGISTER_PULSE_MODE, self._PULSE_MODE_CODE_ENABLE)
 
+		self._start_udp_listener()
+
+		if self._inner_watchdog_timer:
+			self._inner_watchdog_timer.cancel()
+
+		def _get_listening_status(self):
+			'''Безопасное чтение статуса'''
+			with self._listener_lock:
+				return self._is_listening
+
+		self._inner_watchdog_timer = threading.Timer(
+			interval=self._INNER_WATCHDOG_INTERVAL_SEC, 
+			function=lambda: self.enable_pulse_mode() if _get_listening_status() else None #TODO потенциальная гонка данных за _is_listening
+		)
+		self._inner_watchdog_timer.daemon = True
+		self._inner_watchdog_timer.start()
 		
-		if hasattr(self, '_inner_watchdog_thread') and self._inner_watchdog_thread:
-			self._inner_watchdog_thread.cancel()
+		print(f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
 
-		self._inner_watchdog_thread = threading.Timer(interval=self._INNER_WATCHDOG_INTERVAL_SEC,
-												function= self.enable_pulse_mode )
-		self._inner_watchdog_thread.daemon = True
-		self._inner_watchdog_thread.start()
 
-		self._is_listening = True
-		self._listener_thread = threading.Thread(daemon=True, target=self._udp_listener)
-		self._listener_thread.start()
-		self.info_stream(f"UDP listener для Pulse mode запущен на порту {self.pulse_udp_port}")
-	
 # ########################################################################################
 	@command
 	def disable_pulse_mode(self):
-		self._inner_watchdog_thread = None
-		if hasattr(self, '_inner_watchdog_thread') and self._inner_watchdog_thread:
-			self._inner_watchdog_thread.cancel()
-			self._inner_watchdog_thread = None
-
-		self._is_listening = False
-		self._listener_thread.cancel()
-		self._udp_socket.close()
-
-		return self._do_command(self._REGISTER_COMMAND_PULSE, self._CODE_DISABLE_PULSE_MODE)
+		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_DISABLE_PULSE_MODE)
+		self._stop_udp_listener()
 
 # ########################################################################################
 	errors = attribute(
