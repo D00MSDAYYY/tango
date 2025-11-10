@@ -40,9 +40,14 @@ class BUK_M(_TANGO_MODBUS):
 
 # ########################################################################################
 	def init_device(self):
-		print('начало инициализации BUK_M')
+		print('-> BUK_M')
+
 		super().init_device()
-		print('конец инициализации BUK_M')
+
+		print('Статус БУК-М : ',self.status_read())
+		print('Ошибки : ', self.errors_read())
+
+		print('<- BUK_M')
 
 # ########################################################################################
 	# status = attribute( #TODO
@@ -72,11 +77,12 @@ class BUK_M(_TANGO_MODBUS):
 			15: "Запись команд запрещена"
 		}
 
+		status = "Статус не определен"
 		for bit_index, message in status_map.items():
-			if status_bits[bit_index] == '1':
-				return message
+			if int(status_bits[bit_index]):
+				status = message
 		
-		return "Статус не определен"
+		return status
 	
 
 # ########################################################################################
@@ -166,13 +172,13 @@ class BUK_M(_TANGO_MODBUS):
 			self._udp_listener_thread = threading.Thread(target=self._udp_listener, daemon=True)
 			self._udp_listener_thread.start()
 
-			if self._inner_watchdog_timer:
-				self._inner_watchdog_timer.cancel()
-
 			def _get_listening_status(self):
 				'''Безопасное чтение статуса'''
 				with self._listener_lock:
 					return self._is_listening
+
+			if self._inner_watchdog_timer:
+				self._inner_watchdog_timer.cancel()
 
 			self._inner_watchdog_timer = threading.Timer(
 				interval=self._INNER_WATCHDOG_INTERVAL_SEC, 
@@ -180,6 +186,7 @@ class BUK_M(_TANGO_MODBUS):
 			)
 			self._inner_watchdog_timer.daemon = True
 			self._inner_watchdog_timer.start()
+
 			print("_inner_watchdog_timer запущен")
 
 		print("_udp_listener_thread запущен")
@@ -198,23 +205,7 @@ class BUK_M(_TANGO_MODBUS):
 	@command
 	def enable_pulse_mode(self):
 		self._do_command(self._REGISTER_PULSE_MODE, self._PULSE_MODE_CODE_ENABLE)
-
-		self._start_udp_listener()
-
-		if self._inner_watchdog_timer:
-			self._inner_watchdog_timer.cancel()
-
-		def _get_listening_status(self):
-			'''Безопасное чтение статуса'''
-			with self._listener_lock:
-				return self._is_listening
-
-		self._inner_watchdog_timer = threading.Timer(
-			interval=self._INNER_WATCHDOG_INTERVAL_SEC, 
-			function=lambda: self.enable_pulse_mode() if _get_listening_status() else None #TODO потенциальная гонка данных за _is_listening
-		)
-		self._inner_watchdog_timer.daemon = True
-		self._inner_watchdog_timer.start()
+		# self._start_udp_listener()
 		
 		print(f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
 
@@ -222,16 +213,17 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	@command
 	def disable_pulse_mode(self):
+		# self._stop_udp_listener()
 		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_DISABLE_PULSE_MODE)
-		self._stop_udp_listener()
+		print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
 
 # ########################################################################################
-	errors = attribute(
-		label="errors",
-		dtype=str,
-		doc="Слово ошибок"
-	)
-	@errors.read
+	# errors = attribute(
+	# 	label="errors",
+	# 	dtype=str,
+	# 	doc="Слово ошибок"
+	# )
+	# @errors.read
 	def errors_read(self):
 		result = self._read_input_registers(self._REGISTER_ERROR_WORD, 1)
 

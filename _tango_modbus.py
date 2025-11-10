@@ -3,8 +3,9 @@ from tango.server import Device
 from tango.server import class_property, device_property
 
 from pymodbus.client import ModbusTcpClient
-from pymodbus.exceptions import ModbusException
 from pymodbus.pdu import ExceptionResponse
+
+import struct
 
 class _TANGO_MODBUS(Device):
 # ########################################################################################
@@ -19,14 +20,17 @@ class _TANGO_MODBUS(Device):
 
 # ########################################################################################
 	def init_device(self):
-		print('начало инициализации _TANGO_MODBUS')
+		print('-> _TANGO_MODBUS')
+
 		super().init_device()
 		self.connect_to_modbus()
-		print('конец инициализации _TANGO_MODBUS')
+		
+		print('<- _TANGO_MODBUS')
 
 # ########################################################################################
 	def connect_to_modbus(self):
 		'''Инициализация Modbus клиента'''
+
 		self.modbus_client = ModbusTcpClient(
 			host=self.host,
 			port=self.port,
@@ -89,11 +93,18 @@ class _TANGO_MODBUS(Device):
 		'''Обработка ответа Modbus'''
 
 		if response.isError():
-			print(f"Modbus ошибка в ответе: {response}")
-			return None
-		
-		elif isinstance(response, ExceptionResponse):
-			print(f"Modbus исключение: {response}")
+
+			error_messages = {
+			1: "Недопустимый код функции",
+			2: "Недопустимый адрес данных", 
+			3: "Недопустимое значение данных",
+			4: "Ошибка устройства",
+			5: "Подтверждение",
+			6: "Устройство занято"
+		}
+			message = error_messages.get(response.exception_code, "Неизвестная ошибка")
+			print('Ошибка в ответе Modbus : ', message)
+
 			return None
 		
 		else:
@@ -101,3 +112,43 @@ class _TANGO_MODBUS(Device):
 				return response.registers
 			else:
 				return None
+			
+# ########################################################################################
+	def _read_float_from_input_register(self,  addr):
+		result = self._read_input_registers(addr, 2)
+
+		if result is None:
+			print(f"Не удалось прочитать регистр {addr}")
+			return None
+
+		try:
+			data_bytes = struct.pack('>2H', result[0], result[1])
+			value = struct.unpack('>f', data_bytes)[0]
+
+			print(f"Значение (float) : {value}")
+
+			return float(value)
+
+		except Exception as e:
+			self.error_stream(f"Ошибка преобразования данных (float): {e}")
+			return None
+
+# ########################################################################################
+	def _read_double_from_input_register(self, addr):
+		result = self._read_input_registers(addr, 4)
+
+		if result is None:
+			print(f"Не удалось прочитать регистры начиная с {addr}")
+			return None
+
+		try:
+			data_bytes = struct.pack('>4H', result[0], result[1], result[2], result[3])
+			value = struct.unpack('>d', data_bytes)[0]
+
+			print(f"Прочитано double значение из регистра {addr}: {value}")
+
+			return float(value)
+
+		except Exception  as e:
+			self.error_stream(f"Ошибка преобразования данных в double: {e}")
+			return None
