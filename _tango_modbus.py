@@ -53,7 +53,7 @@ class _TANGO_MODBUS(Device):
 			print(f"Исключение в connect_to_modbus : {e}")
 
 # ########################################################################################
-	def _read_input_registers(self, address, count=1):
+	def _read_input_registers(self, address, count, device_id): #TODO
 		'''Чтение input registers (3xxxx)'''
 
 		try:
@@ -62,7 +62,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_input_registers(
 				address=modbus_address, 
 				count=count,
-				device_id=self.modbus_id
+				device_id=device_id
 			)
 			return self._process_response(response)
 		
@@ -71,7 +71,7 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _read_holding_registers(self, address, count, unit=0):
+	def _read_holding_registers(self, address, count, device_id):
 		'''Чтение holding registers (4xxxx)'''
 
 		try:
@@ -80,7 +80,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_holding_registers(
 				address=modbus_address,  
 				count=count,
-				device_id=self.modbus_id
+				device_id=device_id
 			)
 			return self._process_response(response)
 		
@@ -89,7 +89,7 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _process_response(self, response):
+	def _process_response(self, response): # TODO return tuple 
 		'''Обработка ответа Modbus'''
 
 		if response.isError():
@@ -114,8 +114,8 @@ class _TANGO_MODBUS(Device):
 				return None
 			
 # ########################################################################################
-	def _read_float_from_input_register(self,  addr):
-		result = self._read_input_registers(addr, 2)
+	def _read_float_from_input_register(self,  addr, device_id):
+		result = self._read_input_registers(addr, 2, device_id)
 
 		if result is None:
 			print(f"Не удалось прочитать регистр {addr}")
@@ -134,8 +134,8 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _read_double_from_input_register(self, addr):
-		result = self._read_input_registers(addr, 4)
+	def _read_double_from_input_register(self, addr, device_id):
+		result = self._read_input_registers(addr, 4, device_id)
 
 		if result is None:
 			print(f"Не удалось прочитать регистры начиная с {addr}")

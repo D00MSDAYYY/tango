@@ -34,7 +34,7 @@ class BUK_M1(BUK_M):
 		print('temp_modulator_transistors_float_read == ', self.temp_modulator_transistors_float_read())
 		print('temp_inductor_float_read == ', self.temp_inductor_float_read())
 		print('setpoint_output_current_float_read == ', self.setpoint_output_current_float_read())
-		
+
 		print('<- BUK_M1')
 		# self.error_warning_read()
 		# self.enable_pulse_mode()
@@ -46,8 +46,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Статус источника тока"
 	# )
 	# @status.read
-	def status_read(self):
-		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1)
+	def status_read(self, index):
+		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, index)
 
 		if result is None:
 			return "Ошибка чтения статуса источника"
@@ -119,8 +119,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение кода ошибки/предупреждения"
 	# 	)
 	# @error_warning.read
-	def error_warning_read(self):
-		result = self._read_input_registers(self._REGISTER_ERROR_WARNING, 1)
+	def error_warning_read(self, index):
+		result = self._read_input_registers(self._REGISTER_ERROR_WARNING, 1, index)
 
 		if result is None:
 			return "Ошибка чтения статуса источника"
@@ -135,8 +135,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение выходного тока (float)"
 	# )
 	# @output_current_float.read
-	def output_current_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT)
+	def output_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT, index)
 	
 # ########################################################################################
 	# load_current_float = attribute(
@@ -145,8 +145,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение тока в нагрузке (float)"
 	# )
 	# @load_current_float.read
-	def load_current_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT)
+	def load_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT, index)
 	
 # ########################################################################################
 	# load_voltage_float = attribute(
@@ -155,8 +155,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение напряжения в нагрузке (float)"
 	# )
 	# @load_voltage_float.read
-	def load_voltage_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT)
+	def load_voltage_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT, index)
 	
 # ########################################################################################
 	# temp_modulator_transistors_float = attribute(
@@ -165,8 +165,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение температуры транзисторов модулятора (float)"
 	# )
 	# @temp_modulator_transistors_float.read
-	def temp_modulator_transistors_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT)
+	def temp_modulator_transistors_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT, index)
 	
 # ########################################################################################
 	# temp_inductor_float = attribute(
@@ -175,8 +175,8 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение температуры дросселя (float)"
 	# )
 	# @temp_inductor_float.read
-	def temp_inductor_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT)
+	def temp_inductor_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT, index)
 	
 # ########################################################################################
 	# setpoint_output_current_float = attribute(
@@ -185,5 +185,5 @@ class BUK_M1(BUK_M):
 	# 	doc="Значение уставки выходного тока (float)"
 	# )
 	# @setpoint_output_current_float.read
-	def setpoint_output_current_float_read(self):
-		return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT)
+	def setpoint_output_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT, index)

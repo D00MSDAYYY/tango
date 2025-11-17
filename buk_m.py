@@ -29,6 +29,7 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
 	pulse_udp_port =  class_property(dtype=int, default_value=4000)
+	MODBUS_ID_PARENT_BUK_M = class_property(dtype=int, default_value=0) # адрес Modbus_ID корневого устройства 
 
 	_udp_socket : socket.socket
 	_is_listening : bool = False
@@ -50,14 +51,14 @@ class BUK_M(_TANGO_MODBUS):
 		print('<- BUK_M')
 
 # ########################################################################################
-	# status = attribute( #TODO
+	# m1_status = attribute( #TODO
 	# 	label="status",
 	# 	dtype=str,
 	# 	doc="Статус устройства"
 	# )
 	# @status.getter 
-	def status_read(self):
-		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1)
+	def buk_m1_status_read(self):
+		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
 		if result is None:
 			return "Ошибка чтения слова статуса"
@@ -86,46 +87,46 @@ class BUK_M(_TANGO_MODBUS):
 	
 
 # ########################################################################################
-	def _do_command(self, addr,  command_code):
+	def _do_command(self, comm_addr,  command_code, device_id):
 		self.modbus_client.write_register(
-				address= addr - self._OFFSET_HOLDING_REGISTER,
+				address= comm_addr - self._OFFSET_HOLDING_REGISTER,
 				value=command_code,
-				device_id=self.modbus_id
+				device_id=device_id
 			)
 
 	@command(doc_in="#TODO")
 	def stop(self):
-		return self._do_command(self._CODE_STOP)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_STOP, self.MODBUS_ID_PARENT_BUK_M)
 		
 # ########################################################################################
 	@command
 	def get_cyclogram(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_GET_CYCLOGRAMM)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_GET_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@command
 	def cancel_cyclogram(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_CANCEL_CYCLOGRAMM)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_CANCEL_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@command
 	def reset_initialization(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@command
 	def acknowledge_error(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ERROR)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ERROR, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@command
 	def acknowledge_accident(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ACCIDENT)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ACCIDENT, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@command
 	def reset_initialization_incomplete(self):
-		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE)
+		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
 	@abstractmethod
@@ -204,7 +205,7 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	@command
 	def enable_pulse_mode(self):
-		self._do_command(self._REGISTER_PULSE_MODE, self._PULSE_MODE_CODE_ENABLE)
+		self._do_command(self._REGISTER_PULSE_MODE, self._PULSE_MODE_CODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
 		# self._start_udp_listener()
 		
 		print(f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
@@ -213,8 +214,9 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	@command
 	def disable_pulse_mode(self):
+		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_DISABLE_PULSE_MODE, self.MODBUS_ID_PARENT_BUK_M)
 		# self._stop_udp_listener()
-		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_DISABLE_PULSE_MODE)
+
 		print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
 
 # ########################################################################################
@@ -225,7 +227,7 @@ class BUK_M(_TANGO_MODBUS):
 	# )
 	# @errors.read
 	def errors_read(self):
-		result = self._read_input_registers(self._REGISTER_ERROR_WORD, 1)
+		result = self._read_input_registers(self._REGISTER_ERROR_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
 		if result is None:
 			return "Ошибка чтения слова ошибок"

@@ -30,7 +30,7 @@ class BUK_M2(BUK_M):
 		# self.disable_pulse_mode()
 	
 # ########################################################################################
-	def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
+	def _process_pulse_mode_packet(self, data: bytes, addr: tuple): # TODO
 		"""Обработка Pulse пакета"""
 		
 	
@@ -41,66 +41,66 @@ class BUK_M2(BUK_M):
 	# 	doc="Значение кода ошибки/предупреждения"
 	# 	)
 	# @error_warning.read
-	def error_warning_read(self):
+	def error_warning_read(self, index):
 		pass
 	
 
 # ########################################################################################
-	output_current_float = attribute(
-		label="output_current_float",
-		dtype=float,
-		doc="Значение выходного тока (float)"
-	)
-	@output_current_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT)
+	# output_current_float = attribute(
+	# 	label="output_current_float",
+	# 	dtype=float,
+	# 	doc="Значение выходного тока (float)"
+	# )
+	# @output_current_float.read
+	def output_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT, index)
 	
 # ########################################################################################
-	load_current_float = attribute(
-		label="load_current_float",
-		dtype=float,
-		doc="Значение тока в нагрузке (float)"
-	)
-	@load_current_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT)
+	# load_current_float = attribute(
+	# 	label="load_current_float",
+	# 	dtype=float,
+	# 	doc="Значение тока в нагрузке (float)"
+	# )
+	# @load_current_float.read
+	def load_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT, index)
 	
 # ########################################################################################
-	load_voltage_float = attribute(
-		label="load_voltage_float",
-		dtype=float,
-		doc="Значение напряжения в нагрузке (float)"
-	)
-	@load_voltage_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT)
+	# load_voltage_float = attribute(
+	# 	label="load_voltage_float",
+	# 	dtype=float,
+	# 	doc="Значение напряжения в нагрузке (float)"
+	# )
+	# @load_voltage_float.read
+	def load_voltage_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT, index)
 	
 # ########################################################################################
-	temp_modulator_transistors_float = attribute(
-		label="temp_modulator_transistors_float",
-		dtype=float,
-		doc="Значение температуры транзисторов модулятора (float)"
-	)
-	@temp_modulator_transistors_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT)
+	# temp_modulator_transistors_float = attribute(
+	# 	label="temp_modulator_transistors_float",
+	# 	dtype=float,
+	# 	doc="Значение температуры транзисторов модулятора (float)"
+	# )
+	# @temp_modulator_transistors_float.read
+	def temp_modulator_transistors_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT, index)
 	
 # ########################################################################################
-	temp_inductor_float = attribute(
-		label="temp_inductor_float",
-		dtype=float,
-		doc="Значение температуры дросселя (float)"
-	)
-	@temp_inductor_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT)
+	# temp_inductor_float = attribute(
+	# 	label="temp_inductor_float",
+	# 	dtype=float,
+	# 	doc="Значение температуры дросселя (float)"
+	# )
+	# @temp_inductor_float.read
+	def temp_inductor_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT, index)
 	
 # ########################################################################################
-	setpoint_output_current_float = attribute(
-		label="setpoint_output_current_float",
-		dtype=float,
-		doc="Значение уставки выходного тока (float)"
-	)
-	@setpoint_output_current_float.read
-	def _(self):
-		return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT)
+	# setpoint_output_current_float = attribute(
+	# 	label="setpoint_output_current_float",
+	# 	dtype=float,
+	# 	doc="Значение уставки выходного тока (float)"
+	# )
+	# @setpoint_output_current_float.read
+	def setpoint_output_current_float_read(self, index):
+		return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT, index)
