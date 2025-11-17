@@ -46,7 +46,7 @@ class BUK_M1(BUK_M):
 	# 	doc="Статус источника тока"
 	# )
 	# @status.read
-	def status_read(self, index):
+	def supply_status_read(self, index) -> str:
 		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, index)
 
 		if result is None:
