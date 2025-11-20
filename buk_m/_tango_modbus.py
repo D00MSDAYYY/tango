@@ -3,22 +3,24 @@ from tango.server import Device
 from tango.server import class_property, device_property
 
 from pymodbus.client import ModbusTcpClient
-from pymodbus.pdu import ExceptionResponse
 
 import struct
 
 class _TANGO_MODBUS(Device):
+
 # ########################################################################################
+
 	_OFFSET_INPUT_REGISTER = 300001
 	_OFFSET_HOLDING_REGISTER = 400001
 
 # ########################################################################################
+
 	DEVICE_CLASS_DESCRIPTION = "вспомогательный класс для взаимодействия между Tango Controls и ModbusTCP"
 	host = device_property(dtype=str)
 	port = class_property(dtype=int, default_value=502)
-	modbus_id = device_property(dtype=int)
 
 # ########################################################################################
+
 	def init_device(self):
 		print('-> _TANGO_MODBUS')
 
@@ -28,6 +30,7 @@ class _TANGO_MODBUS(Device):
 		print('<- _TANGO_MODBUS')
 
 # ########################################################################################
+
 	def connect_to_modbus(self):
 		'''Инициализация Modbus клиента'''
 
@@ -53,7 +56,8 @@ class _TANGO_MODBUS(Device):
 			print(f"Исключение в connect_to_modbus : {e}")
 
 # ########################################################################################
-	def _read_input_registers(self, address, count, device_id): 
+
+	def _read_input_registers(self, address, count, modbus_id): 
 		'''Чтение input registers (3xxxx)'''
 
 		try:
@@ -62,7 +66,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_input_registers(
 				address=modbus_address, 
 				count=count,
-				device_id=device_id
+				device_id=modbus_id or self.modbus_id
 			)
 			return self._process_response(response)
 		
@@ -71,7 +75,8 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _read_holding_registers(self, address, count, device_id):
+
+	def _read_holding_registers(self, address, count, modbus_id):
 		'''Чтение holding registers (4xxxx)'''
 
 		try:
@@ -80,7 +85,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_holding_registers(
 				address=modbus_address,  
 				count=count,
-				device_id=device_id
+				device_id=modbus_id or self.modbus_id
 			)
 			return self._process_response(response)
 		
@@ -89,6 +94,7 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
+
 	def _process_response(self, response): # TODO return tuple (value, is_ok)
 		'''Обработка ответа Modbus'''
 
@@ -114,8 +120,9 @@ class _TANGO_MODBUS(Device):
 				return None
 			
 # ########################################################################################
-	def _read_float_from_input_register(self,  addr, device_id):
-		result = self._read_input_registers(addr, 2, device_id)
+
+	def _read_float_from_input_register(self,  addr, modbus_id):
+		result = self._read_input_registers(addr, 2, modbus_id)
 
 		if result is None:
 			print(f"Не удалось прочитать регистр {addr}")
@@ -134,8 +141,9 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _read_double_from_input_register(self, addr, device_id):
-		result = self._read_input_registers(addr, 4, device_id)
+
+	def _read_double_from_input_register(self, addr, modbus_id):
+		result = self._read_input_registers(addr, 4, modbus_id)
 
 		if result is None:
 			print(f"Не удалось прочитать регистры начиная с {addr}")

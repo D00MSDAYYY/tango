@@ -4,7 +4,9 @@ from collections import deque
 from tango.server import  attribute, AttrWriteType
 
 class BUK_M1(BUK_M):
+
 # ########################################################################################
+
 	_REGISTER_STATUS_WORD = 300001
 	_REGISTER_ERROR_WARNING = 300002
 	_REGISTER_OUTPUT_CURRENT_FLOAT = 300003
@@ -17,11 +19,15 @@ class BUK_M1(BUK_M):
 	_MAX_PACKETS_BUFFER_SIZE = 1000
 
 	_CURRENT_SUPPLIERS_NUMBER = 8
+
 # ########################################################################################
+
 	DEVICE_CLASS_DESCRIPTION = "БУК-М1. Источники тока корректоров"
 
 	_packet_buffer = deque(maxlen=_MAX_PACKETS_BUFFER_SIZE)
+
 # ########################################################################################
+
 	def init_device(self):
 		print('-> BUK_M1')
 
@@ -40,11 +46,37 @@ class BUK_M1(BUK_M):
 		# self.error_warning_read()
 		# self.enable_pulse_mode()
 		# self.disable_pulse_mode()
+
 # ########################################################################################
+
 	def initialize_dynamic_attributes(self):
 
+		attribute_configs = [
+			('status', 							str, 	_supplier_status_read_FACTORY, 					"Статус источника тока"),
+			('error_warning', 					str, 	_error_warning_read_FACTORY, 					"Ошибки/предупреждения"),
+			('output_current_float', 			float, 	_output_current_float_read_FACTORY, 			"Выходной ток"),
+			('load_current_float', 				float, 	_load_current_float_read_FACTORY, 				"Ток в нагрузке"),
+			('load_voltage_float', 				float, 	_load_voltage_float_read_FACTORY, 				"Напряжение в нагрузке"),
+			('temp_modulator_transistors_float',float, 	_temp_modulator_transistors_float_read_FACTORY, "Температура транзисторов"),
+			('temp_inductor_float', 			float, 	_temp_inductor_float_read_FACTORY, 				"Температура дросселя"),
+			('setpoint_output_current_float', 	float, 	_setpoint_output_current_float_read_FACTORY, 	"Уставка выходного тока")
+		]
+
+		for i in range(self._CURRENT_SUPPLIERS_NUMBER):
+			for attr_name, dtype, factory, doc_str in attribute_configs:
+				attr_obj = attribute(
+					name=f"{attr_name}_{i}",
+					dtype=dtype,
+					access=AttrWriteType.READ,
+					fget=factory(i),
+					doc=f"{doc_str} #{i}"
+				)
+				self.add_attribute(attr_obj)
+
+# ########################################################################################
+
 		def _supplier_status_read_FACTORY(index):
-			def supplier_status_read() -> str:
+			def _() -> str:
 				result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, index)
 
 				if result is None:
@@ -72,12 +104,12 @@ class BUK_M1(BUK_M):
 		
 				return response_str
 			
-			return supplier_status_read
+			return _
 
 # ########################################################################################
 
 		def _error_warning_read_FACTORY(index):
-			def error_warning_read():
+			def _():
 				result = self._read_input_registers(self._REGISTER_ERROR_WARNING, 1, index)
 
 				if result is None:
@@ -86,23 +118,23 @@ class BUK_M1(BUK_M):
 				status_bits = format(result[0], '016b')[::-1]
 				print(f"Ошибки\предупреждения источника: {status_bits}") # TODO
 
-			return error_warning_read
+			return _
 
 # ########################################################################################
 
 		def _output_current_float_read_FACTORY(index):
-			def output_current_float_read():
+			def _():
 				return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT, index)
 			
-			return output_current_float_read
+			return _
 	
 # ########################################################################################
 
 		def _load_current_float_read_FACTORY(index):
-			def load_current_float_read():
+			def _():
 				return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT, index)
 			
-			return load_current_float_read
+			return _
 	
 # ########################################################################################
 
@@ -115,49 +147,29 @@ class BUK_M1(BUK_M):
 # ########################################################################################
 
 		def _temp_modulator_transistors_float_read_FACTORY(index):
-			def temp_modulator_transistors_float_read():
+			def _():
 				return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT, index)
 			
-			return temp_modulator_transistors_float_read
+			return _
 	
 # ########################################################################################
 
 		def _temp_inductor_float_read_FACTORY(index):
-			def temp_inductor_float_read():
+			def _():
 				return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT, index)
 			
-			return temp_inductor_float_read
+			return _
 	
 # ########################################################################################
 
 		def _setpoint_output_current_float_read_FACTORY(index):
-			def setpoint_output_current_float_read():
+			def _():
 				return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT, index)
-			return setpoint_output_current_float_read
-
-		attribute_configs = [
-			('status', str, _supplier_status_read_FACTORY, "Статус источника тока"),
-			('error_warning', str, _error_warning_read_FACTORY, "Ошибки/предупреждения"),
-			('output_current_float', float, _output_current_float_read_FACTORY, "Выходной ток"),
-			('load_current_float', float, _load_current_float_read_FACTORY, "Ток в нагрузке"),
-			('load_voltage_float', float, _load_voltage_float_read_FACTORY, "Напряжение в нагрузке"),
-			('temp_modulator_transistors_float', float, _temp_modulator_transistors_float_read_FACTORY['temp_modulator'], "Температура транзисторов"),
-			('temp_inductor_float', float, _temp_inductor_float_read_FACTORY['temp_inductor'], "Температура дросселя"),
-			('setpoint_output_current_float', float, _setpoint_output_current_float_read_FACTORY['setpoint_current'], "Уставка выходного тока")
-		]
-
-		for i in range(self._CURRENT_SUPPLIERS_NUMBER):
-			for attr_name, dtype, factory, doc_str in attribute_configs:
-				attr_obj = attribute(
-					name=f"{attr_name}_{i}",
-					dtype=dtype,
-					access=AttrWriteType.READ,
-					fget=factory(i),
-					doc=f"{doc_str} #{i}"
-				)
-				self.add_attribute(attr_obj)
-
+			
+			return _
+		
 # ########################################################################################
+
 	def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
 		"""Обработка Pulse пакета"""
 		import struct

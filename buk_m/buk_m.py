@@ -6,8 +6,10 @@ from tango.server import class_property, command, attribute
 from abc import abstractmethod
 
 class BUK_M(_TANGO_MODBUS): 
+
 # ########################################################################################
-	_REGISTER_STATUS_WORD = 300001 # TODO Final const
+
+	_REGISTER_STATUS_WORD = 300001
 	_REGISTER_ERROR_WORD = 300002
 	_REGISTER_ACCIDENT_WORD = 300003
 	_REGISTER_COMMAND_WORD = 400001
@@ -25,6 +27,7 @@ class BUK_M(_TANGO_MODBUS):
 	_CODE_PULSE_MODE_DISABLE = 2
 
 # ########################################################################################
+
 	DEVICE_CLASS_DESCRIPTION = "Блок управления и коммутации БУК-М"
 	pulse_udp_port =  class_property(dtype=int, default_value=4000)
 	MODBUS_ID_PARENT_BUK_M = class_property(dtype=int, default_value=0) # адрес Modbus_ID корневого устройства 
@@ -35,6 +38,7 @@ class BUK_M(_TANGO_MODBUS):
 	_udp_listener_lock = threading.Lock()
 
 # ########################################################################################
+
 	def init_device(self):
 		print('-> BUK_M')
 
@@ -46,12 +50,13 @@ class BUK_M(_TANGO_MODBUS):
 		print('<- BUK_M')
 
 # ########################################################################################
-	# status = attribute( #TODO
-	# 	label="status",
-	# 	dtype=str,
-	# 	doc="Статус устройства БУК-М"
-	# )
-	# @status.read 
+
+	status = attribute( #TODO
+		label="status",
+		dtype=str,
+		doc="Статус устройства БУК-М"
+	)
+	@status.read 
 	def _(self):
 		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
@@ -83,11 +88,11 @@ class BUK_M(_TANGO_MODBUS):
 
 # ########################################################################################
 
-	def _do_command(self, comm_addr,  command_code, device_id):
+	def _do_command(self, comm_addr,  command_code, modbus_id):
 		self.modbus_client.write_register(
 				address= comm_addr - self._OFFSET_HOLDING_REGISTER,
 				value=command_code,
-				device_id=device_id
+				device_id=modbus_id
 			)
 		
 # ########################################################################################
@@ -97,41 +102,49 @@ class BUK_M(_TANGO_MODBUS):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_STOP, self.MODBUS_ID_PARENT_BUK_M)
 		
 # ########################################################################################
+
 	@command
 	def get_cyclogram(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_GET_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@command
 	def cancel_cyclogram(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_CANCEL_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@command
 	def reset_initialization(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@command
 	def acknowledge_error(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ERROR, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@command
 	def acknowledge_accident(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ACCIDENT, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@command
 	def reset_initialization_incomplete(self):
 		return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE, self.MODBUS_ID_PARENT_BUK_M)
 	
 # ########################################################################################
+
 	@abstractmethod
 	def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
 		pass
 
 # ########################################################################################
+
 	def _udp_listener(self):
 		self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		self._udp_socket.settimeout(1.0)
@@ -160,6 +173,7 @@ class BUK_M(_TANGO_MODBUS):
 				pass
 
 # ########################################################################################
+
 	def _start_udp_listener(self):
 		"""Запуск UDP listener в отдельном потоке"""
 		with self._udp_listener_lock:
@@ -170,10 +184,10 @@ class BUK_M(_TANGO_MODBUS):
 			self._is_listening = True
 			self._udp_listener_thread = threading.Thread(target=self._udp_listener, daemon=True)
 			self._udp_listener_thread.start()
-
-		print("_udp_listener_thread запущен")
+			print("_udp_listener_thread запущен")
 
 # ########################################################################################
+
 	def _stop_udp_listener(self):
 		'''Остановка UDP listener'''
 		with self._udp_listener_lock:
@@ -181,9 +195,11 @@ class BUK_M(_TANGO_MODBUS):
 
 			if self._udp_listener_thread and self._udp_listener_thread.is_alive():
 				self._udp_listener_thread.join(timeout=2.0)
+
 				print("_udp_listener_thread остановлен")
 
 # ########################################################################################
+
 	@command
 	def enable_pulse_mode(self):
 		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_PULSE_MODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
@@ -193,6 +209,7 @@ class BUK_M(_TANGO_MODBUS):
 
 
 # ########################################################################################
+
 	@command
 	def disable_pulse_mode(self):
 		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_PULSE_MODE_DISABLE, self.MODBUS_ID_PARENT_BUK_M)
@@ -201,13 +218,14 @@ class BUK_M(_TANGO_MODBUS):
 		print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
 
 # ########################################################################################
-	# errors = attribute(
-	# 	label="errors",
-	# 	dtype=str,
-	# 	doc="Слово ошибок"
-	# )
-	# @errors.read
-	def errors_read(self):
+
+	errors = attribute(
+		label="errors",
+		dtype=str,
+		doc="Слово ошибок"
+	)
+	@errors.read
+	def _(self):
 		result = self._read_input_registers(self._REGISTER_ERROR_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
 		if result is None:
@@ -240,7 +258,8 @@ class BUK_M(_TANGO_MODBUS):
 
 		return "; ".join(active_errors) if active_errors else "Ошибок нет"
 
-	# ########################################################################################
+# ########################################################################################
+
 	accidents = attribute(
 		label="accidents",
 		dtype=str,
