@@ -23,11 +23,9 @@ class BUK_M(_TANGO_MODBUS):
 
 	_CODE_PULSE_MODE_ENABLE = 1
 	_CODE_PULSE_MODE_DISABLE = 2
-	_PULSE_MODE_INNER_WATCHDOG_INTERVAL_SEC = 30
-	_PULSE_MODE_OUTER_WATCHDOG_INTERVAL_SEC = 100
 
 # ########################################################################################
-	DEVICE_CLASS_DESCRIPTION = "блок управления и коммутации БУК-М"
+	DEVICE_CLASS_DESCRIPTION = "Блок управления и коммутации БУК-М"
 	pulse_udp_port =  class_property(dtype=int, default_value=4000)
 	MODBUS_ID_PARENT_BUK_M = class_property(dtype=int, default_value=0) # адрес Modbus_ID корневого устройства 
 
@@ -48,13 +46,13 @@ class BUK_M(_TANGO_MODBUS):
 		print('<- BUK_M')
 
 # ########################################################################################
-	# m1_status = attribute( #TODO
+	# status = attribute( #TODO
 	# 	label="status",
 	# 	dtype=str,
-	# 	doc="Статус устройства"
+	# 	doc="Статус устройства БУК-М"
 	# )
-	# @status.getter 
-	def buk_m_status_read(self):
+	# @status.read 
+	def _(self):
 		result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
 		if result is None:
@@ -84,12 +82,15 @@ class BUK_M(_TANGO_MODBUS):
 	
 
 # ########################################################################################
+
 	def _do_command(self, comm_addr,  command_code, device_id):
 		self.modbus_client.write_register(
 				address= comm_addr - self._OFFSET_HOLDING_REGISTER,
 				value=command_code,
 				device_id=device_id
 			)
+		
+# ########################################################################################
 
 	@command(doc_in="#TODO")
 	def stop(self):
@@ -162,7 +163,7 @@ class BUK_M(_TANGO_MODBUS):
 	def _start_udp_listener(self):
 		"""Запуск UDP listener в отдельном потоке"""
 		with self._udp_listener_lock:
-			if self._is_listening and self._udp_listener_thread.is_alive():
+			if self._is_listening and  self._udp_listener_thread and self._udp_listener_thread.is_alive():
 				print("_udp_listener_thread уже запущен")
 				return
 				
@@ -175,17 +176,17 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	def _stop_udp_listener(self):
 		'''Остановка UDP listener'''
-		with self._listener_lock:
+		with self._udp_listener_lock:
 			self._is_listening = False
 
-			if self._udp_listener_thread.is_alive():
+			if self._udp_listener_thread and self._udp_listener_thread.is_alive():
 				self._udp_listener_thread.join(timeout=2.0)
 				print("_udp_listener_thread остановлен")
 
 # ########################################################################################
 	@command
 	def enable_pulse_mode(self):
-		self._do_command(self._REGISTER_PULSE_MODE, self._PULSE_MODE_CODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
+		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_PULSE_MODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
 		self._start_udp_listener()
 
 		print(f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
@@ -194,7 +195,7 @@ class BUK_M(_TANGO_MODBUS):
 # ########################################################################################
 	@command
 	def disable_pulse_mode(self):
-		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_DISABLE_PULSE_MODE, self.MODBUS_ID_PARENT_BUK_M)
+		self._do_command(self._REGISTER_PULSE_MODE, self._CODE_PULSE_MODE_DISABLE, self.MODBUS_ID_PARENT_BUK_M)
 		self._stop_udp_listener()
 
 		print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
@@ -206,7 +207,7 @@ class BUK_M(_TANGO_MODBUS):
 	# 	doc="Слово ошибок"
 	# )
 	# @errors.read
-	def buk_m_errors_read(self):
+	def errors_read(self):
 		result = self._read_input_registers(self._REGISTER_ERROR_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
 		if result is None:

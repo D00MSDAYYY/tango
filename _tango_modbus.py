@@ -53,7 +53,7 @@ class _TANGO_MODBUS(Device):
 			print(f"Исключение в connect_to_modbus : {e}")
 
 # ########################################################################################
-	def _read_input_registers(self, address, count, device_id): #TODO
+	def _read_input_registers(self, address, count, device_id): 
 		'''Чтение input registers (3xxxx)'''
 
 		try:
@@ -89,7 +89,7 @@ class _TANGO_MODBUS(Device):
 			return None
 
 # ########################################################################################
-	def _process_response(self, response): # TODO return tuple 
+	def _process_response(self, response): # TODO return tuple (value, is_ok)
 		'''Обработка ответа Modbus'''
 
 		if response.isError():
