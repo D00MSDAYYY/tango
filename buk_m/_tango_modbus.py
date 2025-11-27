@@ -16,7 +16,7 @@ class _TANGO_MODBUS(Device):
 # ########################################################################################
 
 	DEVICE_CLASS_DESCRIPTION = "вспомогательный класс для взаимодействия между Tango Controls и ModbusTCP"
-	host = device_property(dtype=str)
+	host = device_property(dtype=str, mandatory=True)
 	port = class_property(dtype=int, default_value=502)
 
 # ########################################################################################
@@ -66,7 +66,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_input_registers(
 				address=modbus_address, 
 				count=count,
-				device_id=modbus_id or self.modbus_id
+				device_id=modbus_id 
 			)
 			return self._process_response(response)
 		
@@ -85,7 +85,7 @@ class _TANGO_MODBUS(Device):
 			response = self.modbus_client.read_holding_registers(
 				address=modbus_address,  
 				count=count,
-				device_id=modbus_id or self.modbus_id
+				device_id=modbus_id
 			)
 			return self._process_response(response)
 		
@@ -121,6 +121,7 @@ class _TANGO_MODBUS(Device):
 			
 # ########################################################################################
 
+	# TODO сделать обработку результат None либо здесь, либо в вызывающей функции (где сейчас return _read_float_from_input_register(...))
 	def _read_float_from_input_register(self,  addr, modbus_id):
 		result = self._read_input_registers(addr, 2, modbus_id)
 

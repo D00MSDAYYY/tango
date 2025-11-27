@@ -1,209 +1,202 @@
 from buk_m import BUK_M
 from collections import deque
 
-from tango.server import  attribute, AttrWriteType
+from tango.server import attribute, AttrWriteType
+
 
 class BUK_M1(BUK_M):
 
-# ########################################################################################
+    # ########################################################################################
 
-	_REGISTER_STATUS_WORD = 300001
-	_REGISTER_ERROR_WARNING = 300002
-	_REGISTER_OUTPUT_CURRENT_FLOAT = 300003
-	_REGISTER_LOAD_CURRENT_FLOAT = 300005
-	_REGISTER_LOAD_VOLTAGE_FLOAT = 300007
-	_REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT = 300009
-	_REGISTER_INDUCTOR_FLOAT = 300011
-	_REGISTER_SETPOINT_CURRENT_FLOAT = 300013
+    _REGISTER_STATUS_WORD = 300001
+    _REGISTER_ERROR_WARNING = 300002
+    _REGISTER_OUTPUT_CURRENT_FLOAT = 300003
+    _REGISTER_LOAD_CURRENT_FLOAT = 300005
+    _REGISTER_LOAD_VOLTAGE_FLOAT = 300007
+    _REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT = 300009
+    _REGISTER_INDUCTOR_FLOAT = 300011
+    _REGISTER_SETPOINT_CURRENT_FLOAT = 300013
 
-	_MAX_PACKETS_BUFFER_SIZE = 1000
+    _MAX_PACKETS_BUFFER_SIZE = 1000
 
-	_CURRENT_SUPPLIERS_NUMBER = 8
-
-# ########################################################################################
-
-	DEVICE_CLASS_DESCRIPTION = "БУК-М1. Источники тока корректоров"
-
-	_packet_buffer = deque(maxlen=_MAX_PACKETS_BUFFER_SIZE)
+    _CURRENT_SUPPLIERS_NUMBER = 8
 
 # ########################################################################################
 
-	def init_device(self):
-		print('-> BUK_M1')
+    DEVICE_CLASS_DESCRIPTION = "БУК-М1. Источники тока корректоров"
 
-		super().init_device()
-
-		print('status_read ==',self.status_read())
-		print('error_warning_read == ',self.error_warning_read())
-		print('output_current_float_read == ',self.output_current_float_read())
-		print('load_current_float_read == ',self.load_current_float_read())
-		print('load_voltage_float_read == ', self.load_voltage_float_read())
-		print('temp_modulator_transistors_float_read == ', self.temp_modulator_transistors_float_read())
-		print('temp_inductor_float_read == ', self.temp_inductor_float_read())
-		print('setpoint_output_current_float_read == ', self.setpoint_output_current_float_read())
-
-		print('<- BUK_M1')
-		# self.error_warning_read()
-		# self.enable_pulse_mode()
-		# self.disable_pulse_mode()
+    _packet_buffer = deque(maxlen=_MAX_PACKETS_BUFFER_SIZE)
 
 # ########################################################################################
 
-	def initialize_dynamic_attributes(self):
+    def init_device(self):
+        print('-> BUK_M1')
 
-		attribute_configs = [
-			('status', 							str, 	_supplier_status_read_FACTORY, 					"Статус источника тока"),
-			('error_warning', 					str, 	_error_warning_read_FACTORY, 					"Ошибки/предупреждения"),
-			('output_current_float', 			float, 	_output_current_float_read_FACTORY, 			"Выходной ток"),
-			('load_current_float', 				float, 	_load_current_float_read_FACTORY, 				"Ток в нагрузке"),
-			('load_voltage_float', 				float, 	_load_voltage_float_read_FACTORY, 				"Напряжение в нагрузке"),
-			('temp_modulator_transistors_float',float, 	_temp_modulator_transistors_float_read_FACTORY, "Температура транзисторов"),
-			('temp_inductor_float', 			float, 	_temp_inductor_float_read_FACTORY, 				"Температура дросселя"),
-			('setpoint_output_current_float', 	float, 	_setpoint_output_current_float_read_FACTORY, 	"Уставка выходного тока")
-		]
+        super().init_device()
 
-		for i in range(self._CURRENT_SUPPLIERS_NUMBER):
-			for attr_name, dtype, factory, doc_str in attribute_configs:
-				attr_obj = attribute(
-					name=f"{attr_name}_{i}",
-					dtype=dtype,
-					access=AttrWriteType.READ,
-					fget=factory(i),
-					doc=f"{doc_str} #{i}"
-				)
-				self.add_attribute(attr_obj)
+        print('<- BUK_M1')
 
 # ########################################################################################
 
-		def _supplier_status_read_FACTORY(index):
-			def _() -> str:
-				result = self._read_input_registers(self._REGISTER_STATUS_WORD, 1, index)
-
-				if result is None:
-					return "Ошибка чтения статуса источника"
-
-				status_bits = format(result[0], '016b')[::-1]
-
-				print(f"Статус источника: {status_bits} из регистра {self._REGISTER_STATUS_WORD}")
-
-				state_map = {
-					(0, 0): "отключен",
-					(1, 0): "штатная работа", 
-					(0, 1): "останов в безопасном режиме",
-					(1, 1): "режим прямого управления ШИМ"
-				}
-
-				state_key = (int(status_bits[1]), int(status_bits[0]))
-				
-				response_str = state_map.get(state_key, "неизвестное состояние")
-
-				if int(status_bits[2]):
-					response_str += ", инициализирован"
-				else:
-					response_str += ", неинициализирован"
-		
-				return response_str
-			
-			return _
+    def initialize_dynamic_attributes(self):
+# fmt: off
+        attribute_configs = [
+                ('supplier_status', 							str, 	self._supplier_status_read_FACTORY, 				"Статус источника тока"),
+                ('error_warning', 					str, 	self._error_warning_read_FACTORY, 					"Ошибки/предупреждения"),
+                ('output_current_float', 			float, 	self._output_current_float_read_FACTORY, 			"Выходной ток"),
+                ('load_current_float', 				float, 	self._load_current_float_read_FACTORY, 				"Ток в нагрузке"),
+                ('load_voltage_float', 				float, 	self._load_voltage_float_read_FACTORY, 				"Напряжение в нагрузке"),
+                ('temp_modulator_transistors_float',float, 	self._temp_modulator_transistors_float_read_FACTORY,"Температура транзисторов"),
+                ('temp_inductor_float', 			float, 	self._temp_inductor_float_read_FACTORY, 			"Температура дросселя"),
+                ('setpoint_output_current_float', 	float, 	self._setpoint_output_current_float_read_FACTORY, 	"Уставка выходного тока")
+        ]
+# fmt: on
+        for i in range(self._CURRENT_SUPPLIERS_NUMBER):
+            for attr_name, dtype, factory, doc_str in attribute_configs:
+                attr_obj = attribute(
+                    name=f"{attr_name}_{i}",
+                    dtype=dtype,
+                    access=AttrWriteType.READ,
+                    fget=factory(i),
+                    doc=f"{doc_str} #{i}"
+                )
+                self.add_attribute(attr_obj)
 
 # ########################################################################################
 
-		def _error_warning_read_FACTORY(index):
-			def _():
-				result = self._read_input_registers(self._REGISTER_ERROR_WARNING, 1, index)
+    def _supplier_status_read_FACTORY(self, modbus_id):
+        def _() -> str:
+            result = self._read_input_registers(
+                self._REGISTER_STATUS_WORD, 1, modbus_id)
 
-				if result is None:
-					return "Ошибка чтения статуса источника"
-				
-				status_bits = format(result[0], '016b')[::-1]
-				print(f"Ошибки\предупреждения источника: {status_bits}") # TODO
+            if result is None:
+                return "Ошибка чтения статуса источника"
 
-			return _
+            status_bits = format(result[0], '016b')[::-1]
+
+            print(
+                f"Статус источника: {status_bits} из регистра {self._REGISTER_STATUS_WORD}")
+
+            state_map = {
+                (0, 0): "отключен",
+                (1, 0): "штатная работа",
+                (0, 1): "останов в безопасном режиме",
+                (1, 1): "режим прямого управления ШИМ"
+            }
+
+            state_key = (int(status_bits[1]), int(status_bits[0]))
+
+            response_str = state_map.get(state_key, "неизвестное состояние")
+
+            if int(status_bits[2]):
+                response_str += ", инициализирован"
+            else:
+                response_str += ", неинициализирован"
+
+            return response_str
+
+        return _
 
 # ########################################################################################
 
-		def _output_current_float_read_FACTORY(index):
-			def _():
-				return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT, index)
-			
-			return _
-	
+    def _error_warning_read_FACTORY(self, modbus_id):
+        def _():
+            result = self._read_input_registers(
+                self._REGISTER_ERROR_WARNING, 1, modbus_id)
+
+            if result is None:
+                return "Ошибка чтения статуса источника"
+
+            status_bits = format(result[0], '016b')[::-1]
+            print(f"Ошибки\\предупреждения источника: {status_bits}") 
+            return status_bits  # TODO добавить расшифровку
+
+        return _
+
 # ########################################################################################
 
-		def _load_current_float_read_FACTORY(index):
-			def _():
-				return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT, index)
-			
-			return _
-	
+    def _output_current_float_read_FACTORY(self, modbus_id):
+        def _():
+            return self._read_float_from_input_register(self._REGISTER_OUTPUT_CURRENT_FLOAT, modbus_id)
+
+        return _
+
 # ########################################################################################
 
-		def _load_voltage_float_read_FACTORY(index):
-			def load_voltage_float_read():
-				return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT, index)
-			
-			return load_voltage_float_read
-	
+    def _load_current_float_read_FACTORY(self, modbus_id):
+        def _():
+            return self._read_float_from_input_register(self._REGISTER_LOAD_CURRENT_FLOAT, modbus_id)
+
+        return _
+
 # ########################################################################################
 
-		def _temp_modulator_transistors_float_read_FACTORY(index):
-			def _():
-				return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT, index)
-			
-			return _
-	
+    def _load_voltage_float_read_FACTORY(self, modbus_id):
+        def load_voltage_float_read():
+            return self._read_float_from_input_register(self._REGISTER_LOAD_VOLTAGE_FLOAT, modbus_id)
+
+        return load_voltage_float_read
+
 # ########################################################################################
 
-		def _temp_inductor_float_read_FACTORY(index):
-			def _():
-				return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT, index)
-			
-			return _
-	
+    def _temp_modulator_transistors_float_read_FACTORY(self, modbus_id):
+        def _():
+            return self._read_float_from_input_register(self._REGISTER_TEMP_MODULATOR_TRANSISTORS_FLOAT, modbus_id)
+
+        return _
+
 # ########################################################################################
 
-		def _setpoint_output_current_float_read_FACTORY(index):
-			def _():
-				return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT, index)
-			
-			return _
-		
+    def _temp_inductor_float_read_FACTORY(self, modbus_id):
+        def _():
+            return self._read_float_from_input_register(self._REGISTER_INDUCTOR_FLOAT, modbus_id)
+
+        return _
+
 # ########################################################################################
 
-	def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
-		"""Обработка Pulse пакета"""
-		import struct
+    def _setpoint_output_current_float_read_FACTORY(self, modbus_id):
+        def _():
+            return self._read_float_from_input_register(self._REGISTER_SETPOINT_CURRENT_FLOAT, modbus_id)
 
-		try:
-			expected_size = (4	#	cостояние, тип числа int32
-			+ 4 				#	счетчик пакетов, тип числа int32
-			+ 8 				#	время отправки пакета в секундах с начала «эпохи», тип числа double
-			+ (8 * 8) 			#	массив из 8ми чисел с показаниями токов, тип числа double
-			+ (8 * 8)) 			#	массив из 8ми чисел с показаниями напряжений, тип числа double
+        return _
 
-			if len(data) != expected_size:
-				raise ValueError(f"Неверный размер пакета: {len(data)} байт, ожидается {expected_size} байт")
+# ########################################################################################
 
-			fmt = '>2i d 16d'	# 2 int32 + 1 double + 16 double
-			unpacked_data = struct.unpack(fmt, data)
+    def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
+        """Обработка Pulse пакета"""
+        import struct
+# fmt: off
+        try:
+            expected_size = (4	#	cостояние, тип числа int32
+            + 4 				#	счетчик пакетов, тип числа int32
+            + 8 				#	время отправки пакета в секундах с начала «эпохи», тип числа double
+            + (8 * 8) 			#	массив из 8ми чисел с показаниями токов, тип числа double
+            + (8 * 8)) 			#	массив из 8ми чисел с показаниями напряжений, тип числа double
 
-			currents = unpacked_data[3:(3 + self._CURRENT_SUPPLIERS_NUMBER)]   # 8 значений токов
-			voltages = unpacked_data[11:(11 + self._CURRENT_SUPPLIERS_NUMBER)]  # 8 значений напряжений
+            if len(data) != expected_size:
+                raise ValueError(f"Неверный размер пакета: {len(data)} байт, ожидается {expected_size} байт")
 
-			decoded_data = {
-				'state': unpacked_data[0],
-				'packet_counter': unpacked_data[1],
-				'timestamp': unpacked_data[2],
-				'currents': list(currents),
-				'voltages': list(voltages)
-			}
-			print('decoded data: ', decoded_data)
+            fmt = '>2i d 16d'	# 2 int32 + 1 double + 16 double
+            unpacked_data = struct.unpack(fmt, data)
 
-			self._packet_buffer.append(decoded_data)
+            currents = unpacked_data[3:(3 + self._CURRENT_SUPPLIERS_NUMBER)]   # 8 значений токов
+            voltages = unpacked_data[11:(11 + self._CURRENT_SUPPLIERS_NUMBER)]  # 8 значений напряжений
+# fmt: on
+            decoded_data = {
+                'state': unpacked_data[0],
+                'packet_counter': unpacked_data[1],
+                'timestamp': unpacked_data[2],
+                'currents': list(currents),
+                'voltages': list(voltages)
+            }
+            print('decoded data: ', decoded_data)
 
-			for i, (current, voltage) in enumerate(zip(currents, voltages)):
-				self.push_change_event(f"load_current_float_{i}", current)
-				self.push_change_event(f"load_voltage_float_{i}", voltage)
+            self._packet_buffer.append(decoded_data)
 
-		except Exception as e:
-			print(f"Ошибка обработки Pulse пакета БУК-М1 : {e}")
+            for i, (current, voltage) in enumerate(zip(currents, voltages)):
+                self.push_change_event(f"load_current_float_{i}", current)
+                self.push_change_event(f"load_voltage_float_{i}", voltage)
+
+        except Exception as e:
+            print(f"Ошибка обработки Pulse пакета БУК-М1 : {e}")
