@@ -205,26 +205,24 @@ class BUK_M(_TANGO_MODBUS):
 
 # ########################################################################################
 
-    @command
-    def enable_pulse_mode(self):
-        self._do_command(self._REGISTER_PULSE_MODE,
-                         self._CODE_PULSE_MODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
-        self._start_udp_listener()
+    # @command
+    # def enable_pulse_mode(self):
+    #     self._do_command(self._REGISTER_PULSE_MODE,
+    #                      self._CODE_PULSE_MODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
+    #     self._start_udp_listener()
 
-        print(
-            f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
-
+    #     print(
+    #         f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
 
 # ########################################################################################
 
+    # @command
+    # def disable_pulse_mode(self):
+    #     self._do_command(self._REGISTER_PULSE_MODE,
+    #                      self._CODE_PULSE_MODE_DISABLE, self.MODBUS_ID_PARENT_BUK_M)
+    #     self._stop_udp_listener()
 
-    @command
-    def disable_pulse_mode(self):
-        self._do_command(self._REGISTER_PULSE_MODE,
-                         self._CODE_PULSE_MODE_DISABLE, self.MODBUS_ID_PARENT_BUK_M)
-        self._stop_udp_listener()
-
-        print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
+    #     print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
 
 # ########################################################################################
 
