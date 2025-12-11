@@ -1,0 +1,107 @@
+
+
+# ########################################################################################
+# #####
+
+class BUK_M1_M2_IO(Device):  # ModbusID 17
+    error_warning = attribute(
+        label="error_warning",
+        dtype=str,
+        doc="Значение кода ошибки/предупреждения"
+    )
+
+    @error_warning.read
+    def _(self):
+        return 1  # TODO
+# ########################################################################################
+    inputs_status = attribute(
+        label="inputs_status",
+        dtype=str,
+        doc="Состояние входов"
+    )
+
+    @inputs_status.read
+    def _(self):
+        return 1  # TODO
+# ########################################################################################
+    outputs_status = attribute(
+        label="outputs_status",
+        dtype=str,
+        doc="Состояние выходов"
+    )
+
+    @outputs_status.read
+    def _(self):
+        return 1  # TODO
+# ########################################################################################
+# ########################################################################################
+
+
+class BUK_M2_HIGH_FREQUENCY(Device):  # ModbusID 1
+    DEVICE_CLASS_DESCRIPTION = "Высокоточные АЦП-ЦАП (БУК-М2)"
+
+# ########################################################################################
+    error_warning = attribute(
+        label="error_warning",
+        dtype=str,
+        doc="Значение кода ошибки/предупреждения"
+    )
+
+    @error_warning.read
+    def _(self):
+        return 1  # TODO
+
+# ########################################################################################
+    normalized_ADC1_readings = attribute(
+        label="normalized_ADC1_readings",
+        dtype=float,
+        doc="Нормированные показания АЦП 1"
+    )
+
+    @normalized_ADC1_readings.read
+    def _(self):
+        return 1  # TODO
+
+# ########################################################################################
+    normalized_ADC2_readings = attribute(
+        label="normalized_ADC2_readings",
+        dtype=float,
+        doc="Нормированные показания АЦП 2"
+    )
+
+    @normalized_ADC2_readings.read
+    def _(self):
+        return 1  # TODO
+
+# ########################################################################################
+    normalized_ADC3_readings = attribute(
+        label="normalized_ADC3_readings",
+        dtype=float,
+        doc="Нормированные показания АЦП 3"
+    )
+
+    @normalized_ADC3_readings.read
+    def _(self):
+        return 1  # TODO
+
+# ########################################################################################
+    normalized_value_DAC_setting = attribute(
+        label="normalized_value_DAC_setting",
+        dtype=float,
+        doc="Нормированное значение текущей уставки ЦАП"
+    )
+
+    @normalized_value_DAC_setting.read
+    def _(self):
+        return 1  # TODO
+
+# ########################################################################################
+    temp_ADC_board = attribute(
+        label="temp_ADC_board",
+        dtype=float,
+        doc="Значение температуры платы АЦП"
+    )
+
+    @temp_ADC_board.read
+    def _(self):
+        return 1  # TODO

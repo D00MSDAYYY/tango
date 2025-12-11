@@ -1,9 +1,11 @@
 import threading
 import socket
 
-from _tango_modbus import _TANGO_MODBUS
+from ._tango_modbus import _TANGO_MODBUS
 from tango.server import class_property, command, attribute
+from tango import Attribute
 from abc import abstractmethod
+from typing import Optional
 
 
 class BUK_M(_TANGO_MODBUS):
@@ -24,22 +26,13 @@ class BUK_M(_TANGO_MODBUS):
     _CODE_ACKNOWLEDGE_ACCIDENT = 1 << 7
     _CODE_RESET_INITIALIZATION_INCOMPLETE = 1 << 13
 
-    _CODE_PULSE_MODE_ENABLE = 1
-    _CODE_PULSE_MODE_DISABLE = 2
-
-# ########################################################################################
+    # ########################################################################################
 
     DEVICE_CLASS_DESCRIPTION = "Блок управления и коммутации БУК-М"
     # адрес Modbus_ID корневого устройства
-    pulse_udp_port = class_property(dtype=int, default_value=4000)
     MODBUS_ID_PARENT_BUK_M = class_property(dtype=int, default_value=0)
 
-    _udp_socket: socket.socket
-    _is_listening: bool = False
-    _udp_listener_thread: threading.Thread  # TODO hazardous
-    _udp_listener_lock = threading.Lock()
-
-# ########################################################################################
+    # ########################################################################################
 
     def init_device(self):
         print('-> BUK_M')
@@ -48,16 +41,16 @@ class BUK_M(_TANGO_MODBUS):
 
         print('<- BUK_M')
 
-# ########################################################################################
+    # ########################################################################################
 
-    status = attribute( 
+    status = attribute(
         label="status",
         dtype=str,
         doc="Статус устройства БУК-М"
     )
 
     @status.read
-    def _(self):
+    def _(self, attr):
         result = self._read_input_registers(
             self._REGISTER_STATUS_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
@@ -86,7 +79,7 @@ class BUK_M(_TANGO_MODBUS):
 
         return status
 
-# ########################################################################################
+    # ########################################################################################
 
     def _do_command(self, comm_addr,  command_code, modbus_id):
         self.modbus_client.write_register(
@@ -95,55 +88,55 @@ class BUK_M(_TANGO_MODBUS):
             device_id=modbus_id
         )
 
-# ########################################################################################
+    # ########################################################################################
 
     @command(doc_in="#TODO")
     def stop(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_STOP, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def get_cyclogram(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_GET_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def cancel_cyclogram(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_CANCEL_CYCLOGRAMM, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def reset_initialization(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def acknowledge_error(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ERROR, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def acknowledge_accident(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_ACKNOWLEDGE_ACCIDENT, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @command
     def reset_initialization_incomplete(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE, self.MODBUS_ID_PARENT_BUK_M)
 
-# ########################################################################################
+    # ########################################################################################
 
     @abstractmethod
     def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
         pass
 
-# ########################################################################################
+    # ########################################################################################
 
     def _udp_listener(self):
         self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -172,7 +165,7 @@ class BUK_M(_TANGO_MODBUS):
             except:
                 pass
 
-# ########################################################################################
+    # ########################################################################################
 
     def _start_udp_listener(self):
         """Запуск UDP listener в отдельном потоке"""
@@ -180,30 +173,30 @@ class BUK_M(_TANGO_MODBUS):
             if self._is_listening and self._udp_listener_thread and self._udp_listener_thread.is_alive():
                 print("_udp_listener_thread уже запущен")
                 return
-    ########################################################################################################
-    #                                                                                                      #
-    #    https: // tango-controls.readthedocs.io/projects/pytango/en/latest/how-to/multiprocessing.html    #
-    #                                                                                                      #
-    ########################################################################################################
+            ########################################################################################################
+            #                                                                                                      #
+            #    https: // tango-controls.readthedocs.io/projects/pytango/en/latest/how-to/multiprocessing.html    #
+            #                                                                                                      #
+            ########################################################################################################
             self._is_listening = True
             self._udp_listener_thread = threading.Thread(
                 target=self._udp_listener, daemon=True)
             self._udp_listener_thread.start()
             print("_udp_listener_thread запущен")
 
-# ########################################################################################
+    # ########################################################################################
 
     def _stop_udp_listener(self):
         '''Остановка UDP listener'''
         with self._udp_listener_lock:
             self._is_listening = False
 
-            if self._udp_listener_thread and self._udp_listener_thread.is_alive():
+            if hasattr(self, '_udp_listener_thread') and self._udp_listener_thread and self._udp_listener_thread.is_alive():
                 self._udp_listener_thread.join(timeout=2.0)
 
                 print("_udp_listener_thread остановлен")
 
-# ########################################################################################
+    # ########################################################################################
 
     # @command
     # def enable_pulse_mode(self):
@@ -214,7 +207,7 @@ class BUK_M(_TANGO_MODBUS):
     #     print(
     #         f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
 
-# ########################################################################################
+    # ########################################################################################
 
     # @command
     # def disable_pulse_mode(self):
@@ -224,7 +217,7 @@ class BUK_M(_TANGO_MODBUS):
 
     #     print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
 
-# ########################################################################################
+    # ########################################################################################
 
     errors = attribute(
         label="errors",
@@ -267,7 +260,7 @@ class BUK_M(_TANGO_MODBUS):
 
         return "; ".join(active_errors) if active_errors else "Ошибок нет"
 
-# ########################################################################################
+    # ########################################################################################
 
     accidents = attribute(
         label="accidents",
@@ -278,3 +271,33 @@ class BUK_M(_TANGO_MODBUS):
     @accidents.read
     def _(self):
         return "функция слова аварий пока не поддерживается"
+
+    # ########################################################################################
+
+    def get_attribute_by_name(self, attr_name: str) -> Optional[Attribute]:
+        """
+            Получить объект атрибута по имени
+
+            Args:
+                device: экземпляр Tango устройства
+                attr_name: имя атрибута
+
+            Returns:
+                Объект атрибута или None если не найден
+            """
+        try:
+            # Получаем DeviceAttribute объект
+            device_attr = self.get_device_attr()
+
+            # Получаем список всех атрибутов
+            attributes = list(device_attr.get_attribute_list())
+
+            # Ищем атрибут по имени
+            for attr in attributes:
+                if attr.get_name() == attr_name:
+                    return attr
+
+            return None
+        except Exception as e:
+            print(f"Ошибка при получении атрибута {attr_name}: {e}")
+            return None

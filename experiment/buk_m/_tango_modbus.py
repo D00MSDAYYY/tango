@@ -14,13 +14,13 @@ class _TANGO_MODBUS(Device):
     _OFFSET_INPUT_REGISTER = 300001
     _OFFSET_HOLDING_REGISTER = 400001
 
-# ########################################################################################
+    # ########################################################################################
 
     DEVICE_CLASS_DESCRIPTION = "вспомогательный класс для взаимодействия между Tango Controls и ModbusTCP"
     host = device_property(dtype=str, mandatory=True)
     port = class_property(dtype=int, default_value=502)
 
-# ########################################################################################
+    # ########################################################################################
 
     def init_device(self):
         print('-> _TANGO_MODBUS')
@@ -30,7 +30,7 @@ class _TANGO_MODBUS(Device):
 
         print('<- _TANGO_MODBUS')
 
-# ########################################################################################
+    # ########################################################################################
 
     def connect_to_modbus(self):
         '''Инициализация Modbus клиента'''
@@ -56,7 +56,7 @@ class _TANGO_MODBUS(Device):
         except Exception as e:
             print(f"Исключение в connect_to_modbus : {e}")
 
-# ########################################################################################
+    # ########################################################################################
 
     def _read_input_registers(self, address, count, modbus_id):
         '''Чтение input registers (3xxxx)'''
@@ -75,14 +75,13 @@ class _TANGO_MODBUS(Device):
             print(f"Выброшено исключение: {e}")
             return None
 
-# ########################################################################################
+    # ########################################################################################
 
     def _read_holding_registers(self, address, count, modbus_id):
         '''Чтение holding registers (4xxxx)'''
 
         try:
             modbus_address = address - self._OFFSET_HOLDING_REGISTER
-
             response = self.modbus_client.read_holding_registers(
                 address=modbus_address,
                 count=count,
@@ -94,7 +93,7 @@ class _TANGO_MODBUS(Device):
             print(f"Выброшено исключение: {e}")
             return None
 
-# ########################################################################################
+    # ########################################################################################
 
     def _process_response(self, response):  # TODO return tuple (value, is_ok)
         '''Обработка ответа Modbus'''
@@ -121,20 +120,18 @@ class _TANGO_MODBUS(Device):
             else:
                 return None
 
-# ########################################################################################
+    # ########################################################################################
 
     # TODO сделать обработку результат None либо здесь, либо в вызывающей функции (где сейчас return _read_float32_from_input_register(...))
-    def _read_float32_from_input_register(self,  addr, modbus_id):
-        result = self._read_input_registers(addr, 2, modbus_id)
+    def _convert_to_float32(self,  registers):
 
-        if result is None:
-            print(f"Не удалось прочитать регистр {addr}")
+        if registers is None:
+            print(f"Не удалось прочитать регистры")
             return None
         try:
             values = self.modbus_client.convert_from_registers(
-                result, data_type=self.modbus_client.DATATYPE.FLOAT32)
-            
-            print(f"Прочитано float значение из регистра {addr}: {values}")
+                registers, data_type=self.modbus_client.DATATYPE.FLOAT32, word_order='big')
+            # print(f"Прочитано float значение : {values}")
 
             return values
 
@@ -142,20 +139,18 @@ class _TANGO_MODBUS(Device):
             self.error_stream(f"Ошибка преобразования данных (float): {e}")
             return None
 
-# ########################################################################################
+    # ########################################################################################
 
-    def _read_double_from_input_register(self, addr, modbus_id):
-        result = self._read_input_registers(addr, 4, modbus_id)
-
-        if result is None:
-            print(f"Не удалось прочитать регистры начиная с {addr}")
+    def _convert_to_double(self, registers):
+        if registers is None:
+            print(f"Не удалось прочитать регистры")
             return None
 
         try:
             values = self.modbus_client.convert_from_registers(
-                result, data_type=self.modbus_client.DATATYPE.FLOAT32)
+                registers, data_type=self.modbus_client.DATATYPE.FLOAT64)
 
-            print(f"Прочитано double значение из регистра {addr}: {values}")
+            print(f"Прочитано double значение : {values}")
 
             return values
 
