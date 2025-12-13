@@ -110,7 +110,7 @@ class _TANGO_MODBUS(Device):
             }
             message = error_messages.get(
                 response.exception_code, "Неизвестная ошибка")
-            print('Ошибка в ответе Modbus : ', message)
+            # print('Ошибка в ответе Modbus : ', message)
 
             return None
 
@@ -126,7 +126,7 @@ class _TANGO_MODBUS(Device):
     def _convert_to_float32(self,  registers):
 
         if registers is None:
-            print(f"Не удалось прочитать регистры")
+            # print(f"Не удалось прочитать регистры")
             return None
         try:
             values = self.modbus_client.convert_from_registers(
@@ -136,24 +136,23 @@ class _TANGO_MODBUS(Device):
             return values
 
         except Exception as e:
-            self.error_stream(f"Ошибка преобразования данных (float): {e}")
+            # self.error_stream(f"Ошибка преобразования данных (float): {e}")
             return None
 
     # ########################################################################################
 
     def _convert_to_double(self, registers):
         if registers is None:
-            print(f"Не удалось прочитать регистры")
             return None
 
         try:
             values = self.modbus_client.convert_from_registers(
                 registers, data_type=self.modbus_client.DATATYPE.FLOAT64)
 
-            print(f"Прочитано double значение : {values}")
+            # print(f"Прочитано double значение : {values}")
 
             return values
 
         except Exception as e:
-            self.error_stream(f"Ошибка преобразования данных в double: {e}")
+            # self.error_stream(f"Ошибка преобразования данных в double: {e}")
             return None

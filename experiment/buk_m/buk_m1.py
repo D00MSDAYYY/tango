@@ -1,9 +1,7 @@
 from .buk_m import BUK_M
-from collections import deque
-from tango.server import attribute, command, AttrWriteType
-from typing import Deque
+from tango.server import attribute, AttrWriteType
 from threading import Lock
-
+import numpy as np
 
 class BUK_M1(BUK_M):
 
@@ -56,8 +54,6 @@ class BUK_M1(BUK_M):
                 attr_name,
                 dtype,
                 factory,
-                # period,
-                # pol_period,
                 doc_str,
             ) in attribute_configs:
                 attr_obj = attribute(
@@ -110,9 +106,7 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _error_warning_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
-            print("_error_warning_read_FACTORY  ")
 
             result = self._read_input_registers(
                 self._REGISTER_ERROR_WARNING, 1, modbus_id
@@ -132,7 +126,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _output_current_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(
@@ -145,7 +138,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _load_current_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(
@@ -158,7 +150,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _load_voltage_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(
@@ -171,7 +162,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _temp_modulator_transistors_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(
@@ -184,7 +174,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _temp_inductor_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(self._REGISTER_INDUCTOR_FLOAT, 2, modbus_id)
@@ -195,7 +184,6 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     def _setpoint_output_current_float_read_FACTORY(self, modbus_id):
-
         def _(self, attr):
             return self._convert_to_float32(
                 self._read_input_registers(
@@ -207,59 +195,11 @@ class BUK_M1(BUK_M):
 
     # ########################################################################################
 
-    # def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
-    #     """Обработка Pulse пакета"""
-    #     import struct
-
-    # # fmt: off
-    #     try:
-    #         expected_size = (4	#	cостояние, тип числа int32
-    #         + 4 				#	счетчик пакетов, тип числа int32
-    #         + 8 				#	время отправки пакета в секундах с начала «эпохи», тип числа double
-    #         + (8 * 8) 			#	массив из 8ми чисел с показаниями токов, тип числа double
-    #         + (8 * 8)) 			#	массив из 8ми чисел с показаниями напряжений, тип числа double
-
-    #         if len(data) != expected_size:
-    #             raise ValueError(f"Неверный размер пакета: {len(data)} байт, ожидается {expected_size} байт")
-
-    #         fmt = '>2i d 16d'	# 2 int32 + 1 double + 16 double
-    #         unpacked_data = struct.unpack(fmt, data)
-
-    #         currents = self.modbus_client.convert_from_registers(
-    #             unpacked_data[3:(3 + self._CURRENT_SUPPLIERS_NUMBER)],
-    #             data_type=self.modbus_client.DATATYPE.FLOAT64)    # 8 значений токов
-
-    #         voltages = self.modbus_client.convert_from_registers(
-    #            unpacked_data[11:(11 + self._CURRENT_SUPPLIERS_NUMBER)],
-    #             data_type=self.modbus_client.DATATYPE.FLOAT64)    # 8 значений напряжений
-    # # fmt: on
-
-    #         decoded_data = {
-    #             'state': unpacked_data[0],
-    #             'packet_counter': unpacked_data[1],
-    #             'timestamp': unpacked_data[2],
-    #             'currents': currents,
-    #             'voltages': voltages
-    #         }
-    #         print('decoded data: ', decoded_data)
-
-    #         self._packet_buffer.append(decoded_data)
-
-    #         for i, (current, voltage) in enumerate(zip(currents, voltages)):
-    #             self.get_attribute_by_name(
-    #                 f"load_current_float_{i}").set_value(current)
-    #             self.get_attribute_by_name(
-    #                 f"load_voltage_float_{i}").set_value(voltage)
-
-    #     except Exception as e:
-    #         print(f"Ошибка обработки Pulse пакета БУК-М1 : {e}")
-
-    #
     # fmt: off
-    PULSE_MODE_POLLING_PERIOD_EPSILON_MS:int    = 300
+    PULSE_MODE_POLLING_PERIOD_EPSILON_MS:int    = 150
     PULSE_MODE_EVENT_PERIOD_MS:int              = 1000
     PULSE_MODE_ARRAY_SIZE:int                   = int(PULSE_MODE_EVENT_PERIOD_MS / PULSE_MODE_POLLING_PERIOD_EPSILON_MS)
-    PULSE_MODE_DUMMY_ARRAY: Deque[float]        = deque(maxlen=1000)
+    PULSE_MODE_DUMMY_ARRAY                      = np.zeros((0, 0), dtype=np.float32)
     # fmt: on
 
     # ########################################################################################
@@ -272,75 +212,109 @@ class BUK_M1(BUK_M):
 
     # ########################################################################################
 
-    _pulse_mode_values: list[list[float]]
+    _pulse_mode_values = np.zeros((0, 0), dtype=np.float32)
 
     # ########################################################################################
 
-    _stash: list[list[float]]
+    _pulse_mode_values_stash = np.zeros((0, 0), dtype=np.float32)
 
     # ########################################################################################
 
     _aux_attr_for_polling = attribute(
         label="_aux_attr_for_polling",
         dtype=str,
-        doc="костыль, нужный для работы pulse mode. не подписывайтесь и не читайте его!!!",
+        doc="костыль, нужный для работы pulse mode. не подписывайтесь и не читайте его!",
     )
 
     # ########################################################################################
 
     @_aux_attr_for_polling.read
-    def _(self):
-        print("in _aux_attr_for_polling.read ")
+    def _aux_attr_for_polling_read(self):
+        # print("polling")
 
-        values = []
-        for attr_name, dtype, read_function, doc in (
-            self.pulse_mode_attributes_configs or []
-        ):
+        # 1. Быстрая проверка состояния
+        if not getattr(self, '_enable_pulse_mode', False):
+            return 
+        
+        # 2. Проверка конфигурации
+        configs = self.pulse_mode_attributes_configs
+        if not configs:
+            return "ERROR: No configs"
+
+        # 3. Определение размеров
+        num_values = len(configs)
+
+        # 4. Создание массива NumPy для новых значений
+        new_row = np.zeros(num_values, dtype=np.float32)
+
+        # 5. Быстрое заполнение массива
+        for i in range(num_values):
+            _, _, read_function, _ = configs[i]
             try:
-                attr_value = read_function(self, None)
-            except Exception as e:
-                print(e)
-            print(attr_name, "\t\t\t\t", attr_value)
+                new_row[i] = float(read_function(self, None))
+            except (TypeError, ValueError):
+                new_row[i] = 0.0  # Значение по умолчанию при ошибке
 
-            values.append(attr_value)
+        # 6. Получение ссылки на stash
+        stash = self._pulse_mode_values_stash
 
-        self._stash.append(values)
-        if len(self._stash) >= self.PULSE_MODE_ARRAY_SIZE:
+        # 7. Добавление новой строки в stash
+        if stash.size == 0:
+            # Первое добавление - создаем массив
+            self._pulse_mode_values_stash = new_row.reshape(1, -1)
+        else:
+            # Добавляем новую строку к существующему массиву
+            self._pulse_mode_values_stash = np.vstack([stash, new_row])
+
+        # 8. Проверка размера и перенос данных
+        if stash.shape[0] >= self.PULSE_MODE_ARRAY_SIZE:
             with self._pulse_mode_values_lock:
-                self._pulse_mode_values = self._stash
-                self._stash = list()
+                # Создаем копию данных
+                self._pulse_mode_values = stash.copy()
 
-    ########################################################################################
+            # Очищаем stash, но оставляем последние N/4 строк для плавности
+            keep_rows = max(1, self.PULSE_MODE_ARRAY_SIZE // 4)
+            if stash.shape[0] > keep_rows:
+                self._pulse_mode_values_stash = stash[-keep_rows:]
+            else:
+                # Создаем пустой массив с правильной размерностью столбцов
+                self._pulse_mode_values_stash = np.zeros((0, num_values), dtype=np.float32)
 
-    # enable_pulse_mode = attribute(
-    #     label="enable pulse mode", dtype=bool, doc="Pulse mode ON(1)/OFF(0) атрибут"
-    # )
+    # ########################################################################################
 
-    # # # ########################################################################################
+    enable_pulse_mode = attribute(
+        label="enable pulse mode", dtype=bool, doc="Pulse mode ON(1)/OFF(0) атрибут"
+    )
 
-    # @enable_pulse_mode.read
-    # def _(self):
-    #     return self._enable_pulse_mode
+    # ########################################################################################
+
+    @enable_pulse_mode.read
+    def enable_pulse_mode_read(self):
+        return self._enable_pulse_mode
+
+    # ########################################################################################
+
+    @enable_pulse_mode.write
+    def enable_pulse_mode_write(self, flag: bool):
+        self._enable_pulse_mode = flag
+        if flag == True:
+            self.poll_attribute(
+                "_aux_attr_for_polling", self.PULSE_MODE_POLLING_PERIOD_EPSILON_MS
+            )
+            self.poll_attribute(
+                "pulse_mode_values", self.PULSE_MODE_POLLING_PERIOD_EPSILON_MS
+            )
+        else:
+            self.stop_poll_attribute("_aux_attr_for_polling")
+            self.stop_poll_attribute("pulse_mode_values")
 
     # # ########################################################################################
 
-    # @enable_pulse_mode.write
-    # def _(self, flag: bool):
-    #     print("in enable_pulse_mode.write ")
-    #     self._enable_pulse_mode = flag
-    #     if self._enable_pulse_mode == True:
-    #         self.poll_attribute(
-    #             "_aux_attr_for_polling", self.PULSE_MODE_POLLING_PERIOD_EPSILON_MS
-    #         )
-    #     else:
-    #         self.stop_poll_attribute("_aux_attr_for_polling")
-
-    # # ########################################################################################
     pulse_mode_values = attribute(
         label="pulse_mode_values",
-        dtype=float,
-        max_dim_x=20,
-        max_dim_y=2000,
+        dtype=((float,),),
+        max_dim_x=30,
+        max_dim_y=PULSE_MODE_ARRAY_SIZE,
         doc="атрибут, где хранится массив значений напряжений",
         period=1000,
     )
@@ -348,12 +322,11 @@ class BUK_M1(BUK_M):
     # ########################################################################################
 
     @pulse_mode_values.read
-    def _(self):
-        print("\nin pulse_mode_values.read\n")
+    def pulse_mode_values_read(self):
+        # print("\nin pulse_mode_values.read\n")
         if self._enable_pulse_mode:
             with self._pulse_mode_values_lock:
-                result = list(self._pulse_mode_values)
-                return result
+                return self._pulse_mode_values
         else:
             return self.PULSE_MODE_DUMMY_ARRAY
 

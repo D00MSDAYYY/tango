@@ -130,95 +130,6 @@ class BUK_M(_TANGO_MODBUS):
     def reset_initialization_incomplete(self):
         return self._do_command(self._REGISTER_COMMAND_WORD, self._CODE_RESET_INITIALIZATION_INCOMPLETE, self.MODBUS_ID_PARENT_BUK_M)
 
-    # ########################################################################################
-
-    @abstractmethod
-    def _process_pulse_mode_packet(self, data: bytes, addr: tuple):
-        pass
-
-    # ########################################################################################
-
-    def _udp_listener(self):
-        self._udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._udp_socket.settimeout(1.0)
-
-        try:
-            self._udp_socket.bind((self.host, self.pulse_udp_port))
-
-            while self._is_listening:
-                try:
-                    data, addr = self._udp_socket.recvfrom(1024)
-                    self._process_pulse_mode_packet(data, addr)
-
-                except socket.timeout:
-                    continue
-
-        except Exception as e:
-            if self._is_listening:
-                print(f"Исключение в _udp_listener : {e}")
-
-        finally:
-            try:
-                self._udp_socket.shutdown(socket.SHUT_RDWR)
-                self._udp_socket.close()
-                print(f"_udp_socket {self.host}:{self.port} закрыт")
-            except:
-                pass
-
-    # ########################################################################################
-
-    def _start_udp_listener(self):
-        """Запуск UDP listener в отдельном потоке"""
-        with self._udp_listener_lock:
-            if self._is_listening and self._udp_listener_thread and self._udp_listener_thread.is_alive():
-                print("_udp_listener_thread уже запущен")
-                return
-            ########################################################################################################
-            #                                                                                                      #
-            #    https: // tango-controls.readthedocs.io/projects/pytango/en/latest/how-to/multiprocessing.html    #
-            #                                                                                                      #
-            ########################################################################################################
-            self._is_listening = True
-            self._udp_listener_thread = threading.Thread(
-                target=self._udp_listener, daemon=True)
-            self._udp_listener_thread.start()
-            print("_udp_listener_thread запущен")
-
-    # ########################################################################################
-
-    def _stop_udp_listener(self):
-        '''Остановка UDP listener'''
-        with self._udp_listener_lock:
-            self._is_listening = False
-
-            if hasattr(self, '_udp_listener_thread') and self._udp_listener_thread and self._udp_listener_thread.is_alive():
-                self._udp_listener_thread.join(timeout=2.0)
-
-                print("_udp_listener_thread остановлен")
-
-    # ########################################################################################
-
-    # @command
-    # def enable_pulse_mode(self):
-    #     self._do_command(self._REGISTER_PULSE_MODE,
-    #                      self._CODE_PULSE_MODE_ENABLE, self.MODBUS_ID_PARENT_BUK_M)
-    #     self._start_udp_listener()
-
-    #     print(
-    #         f"Pulse mode включен. UDP listener на порту {self.pulse_udp_port}")
-
-    # ########################################################################################
-
-    # @command
-    # def disable_pulse_mode(self):
-    #     self._do_command(self._REGISTER_PULSE_MODE,
-    #                      self._CODE_PULSE_MODE_DISABLE, self.MODBUS_ID_PARENT_BUK_M)
-    #     self._stop_udp_listener()
-
-    #     print(f"Pulse mode выключен на порту {self.pulse_udp_port}")
-
-    # ########################################################################################
-
     errors = attribute(
         label="errors",
         dtype=str,
@@ -226,7 +137,7 @@ class BUK_M(_TANGO_MODBUS):
     )
 
     @errors.read
-    def _(self):
+    def errors_read(self):
         result = self._read_input_registers(
             self._REGISTER_ERROR_WORD, 1, self.MODBUS_ID_PARENT_BUK_M)
 
@@ -234,7 +145,7 @@ class BUK_M(_TANGO_MODBUS):
             return "Ошибка чтения слова ошибок"
 
         errors_bits = format(result[0], '016b')[::-1]
-        print(f"Слово ошибок: {errors_bits}")
+        # print(f"Слово ошибок: {errors_bits}")
 
         errors_map = {
             0: "TFTP-сервер недоступен",
@@ -269,7 +180,7 @@ class BUK_M(_TANGO_MODBUS):
     )
 
     @accidents.read
-    def _(self):
+    def accidents_read(self):
         return "функция слова аварий пока не поддерживается"
 
     # ########################################################################################

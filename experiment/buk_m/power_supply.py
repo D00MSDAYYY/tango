@@ -56,4 +56,5 @@ class power_supply(BUK_M1):
                 fget=read_function,
                 doc=doc,
             )
+            attr_obj 
             self.add_attribute(attr_obj)

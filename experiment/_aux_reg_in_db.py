@@ -9,7 +9,7 @@ dev_info.name = "test/power_supply/1"
 db = tango.Database()
 
 properties = {
-    'host': ['10.10.9.72'],
+    'host': ['10.10.9.74'],
     'port': ['502'],
     'modbus_id': 1
 }
