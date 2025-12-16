@@ -1,14 +1,10 @@
-import threading
-import socket
-
-from ._tango_modbus import _TANGO_MODBUS
-from tango.server import class_property, command, attribute
+from tango_modbus import TANGO_MODBUS
+from tango.server import class_property,  attribute, command
 from tango import Attribute
-from abc import abstractmethod
 from typing import Optional
 
 
-class BUK_M(_TANGO_MODBUS):
+class BUK_M(TANGO_MODBUS):
 
     # ########################################################################################
 

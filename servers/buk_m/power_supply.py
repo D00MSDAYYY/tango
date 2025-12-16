@@ -1,4 +1,4 @@
-from .buk_m1 import BUK_M1
+from buk_m1 import BUK_M1
 from tango.server import device_property, attribute, AttrWriteType
 
 

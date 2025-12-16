@@ -4,10 +4,7 @@ from tango.server import class_property, device_property
 
 from pymodbus.client import ModbusTcpClient
 
-import struct
-
-
-class _TANGO_MODBUS(Device):
+class TANGO_MODBUS(Device):
 
     # ########################################################################################
 
