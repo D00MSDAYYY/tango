@@ -23,17 +23,47 @@ class observer_app:
             nav.run()
 
     def _connect_to_db(self):
-        if hasattr(self, "db"):
+        if hasattr(self, "settings"):
             return True
 
         file_path = st.text_input("Enter database's file path", "./my_db.json")
 
         if st.button("Connect", type="primary"):
             try:
-                self.settings = stgs.settings(file_path=file_path)
+                self.settings = stgs.settings.from_file(file_path=file_path)
                 st.rerun()
             except Exception as e:
                 st.warning(f"Can't open {file_path}")
+                st.stop()
+
+    def _connect_to_tango_db(self):
+        if hasattr(self, "tango_db"):
+            return True
+
+        tango_settings = stgs.settings.from_settings(self.settings, "tango_settings")
+        tango_hosts = tango_settings.get_or_create("tango_hosts", [])
+        kkk = tango_settings.get_or_create("kkk", [])
+        
+        TANGO_HOST = st.selectbox(
+            "Enter TANGO_HOST",
+            [f"{elem["host"]}:{elem["port"]}" for elem in tango_hosts],
+            placeholder="127.0.0.1:11000",
+            accept_new_options=True,
+        )
+
+        if st.button("Connect", type="primary"):
+            host, port = TANGO_HOST.split(":")
+            try:
+                import tango as tc
+
+                self.tango_db = tc.Database(host, port)
+                tango_hosts.append({"host": host, "port": port})
+                # self.tango_db.settings = tango_settings
+
+                st.rerun()
+
+            except Exception as e:
+                st.warning(f"Can't connect to {TANGO_HOST}")
                 st.stop()
 
     def _make_pages(self):
@@ -47,61 +77,28 @@ class observer_app:
 
         from pages import charts_page, logs_page, system_page, watchdogs_page
 
-        settings = self.settings
+        from_settings = stgs.settings.from_settings
+        ssettings = self.settings
         pages = dict(
             charts_page=_make_page(
                 charts_page.charts_page(
                     "charts",
-                    settings.extract_or_create_settings("charts"),
-                    self.tango_db,
+                    from_settings(ssettings, "charts_page_settings"),
+                    self.tango_db
                 )
             ),
-            logs_page=_make_page(logs_page.logs_page("logs", self.db)),
-            system_page=_make_page(system_page.system_page("system", self.db)),
+            logs_page=_make_page(
+                logs_page.logs_page("logs", from_settings(ssettings, "logs_page_settings"))
+            ),
+            system_page=_make_page(
+                system_page.system_page("system", from_settings(ssettings, "system_page_settings"))
+            ),
             watchdogs_page=_make_page(
-                watchdogs_page.watchdogs_page("watchdogs", self.db)
+                watchdogs_page.watchdogs_page(
+                    "watchdogs", from_settings(ssettings, "watchdogs_page_settings")
+                )
             ),
         )
 
         self.pages = SimpleNamespace(**pages)
         st.rerun()
-
-    def _connect_to_tango_db(self):
-        if hasattr(self, "tango_db"):
-            return True
-
-        tango_settings = self.db.get("tango_settings", dict())  #
-        self.db["tango_settings"] = tango_settings
-        # TODO creae aux func for this construction
-
-        TANGO_HOST = st.text_input(
-            "Enter TANGO_HOST", tango_settings.get("TANGO_HOST", "host:port")
-        )
-        is_save = st.checkbox("Save in db")
-
-        if st.button("Connect", type="primary"):
-            host, port = TANGO_HOST.split(":")
-            try:
-                import tango as tc
-
-                tango_db = tc.Database(host, port)
-                tango_db.host_str = host
-                tango_db.port_str = port
-                self.tango_db = tango_db
-
-                if is_save:
-                    tango_settings["TANGO_HOST"] = TANGO_HOST
-                    self._save_db()
-
-                st.rerun()
-
-            except Exception as e:
-                st.warning(f"Can't connect to {TANGO_HOST}")
-                st.stop()
-
-    def _save_db(self):
-        try:
-            with open(self.db_file_name, "w") as f:
-                json.dump(self.db, f)
-        except Exception as e:
-            st.error(f"Ошибка сохранения: {e}")

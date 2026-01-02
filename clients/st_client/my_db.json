@@ -1,0 +1,15 @@
+{
+    "tango_settings": {
+        "tango_hosts": [
+            {
+                "host": "127.0.0.1",
+                "port": "11000"
+            }
+        ],
+        "kkk": []
+    },
+    "charts_page_settings": {},
+    "logs_page_settings": {},
+    "system_page_settings": {},
+    "watchdogs_page_settings": {}
+}

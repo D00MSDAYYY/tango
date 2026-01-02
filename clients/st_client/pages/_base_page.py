@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 
 
 class _base_page(ABC):
-    def __init__(self, name: str, settings):
-        self.settings = settings
+    def __init__(self, name, settings):
+        # self.settings = settings
         self.name = name
 
     @abstractmethod

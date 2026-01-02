@@ -1,93 +1,116 @@
 import json
+from typing import Any, Callable, Optional
 
 
+class mutable_proxy:
+    def __init__(self, obj: Any, on_change: Callable):
+        self._obj = obj
+        self._on_change = on_change
+        self._original_id = id(obj)
 
-def is_mutable(obj):
-    IMMUTABLE_TYPES = (
-        int, float, complex, str, bytes, bool, 
-        type(None), type(...), tuple, frozenset, range
-    )
-    if isinstance(obj, IMMUTABLE_TYPES):
-        return False
-    else:
-        return True
-    
-class mutable_object():
-    def __init__(self, auto_save=True):
-        pass
+    def __getattr__(self, name):
+        attr = getattr(self._obj, name)
 
-class settings(mutable_object):
-    def __init__(self, file_path=None, auto_save=True):
-        pass
-    
+        if callable(attr):
+            return self._wrap_method(attr, name)
+        elif self.is_mutable(attr):
+            return mutable_proxy(obj=attr, on_change=self._on_change)
+        return attr
 
-class settings:
-    def __init__(self, file_path=None, auto_save=True):
-        if file_path:
-            with open(file_path, "r") as f:
-                self._data = json.load(f)
+    def _wrap_method(self, method, name):
+        def wrapper(*args, **kwargs):
+            result = method(*args, **kwargs)
+            self._on_change()
+            return result
 
-        self.file_path = file_path
-        self.auto_save = auto_save
-        self._parent = None
+        return wrapper
 
     def __getitem__(self, key):
-        return self._data[key]
+        value = self._obj[key]
 
-    def __delitem__(self, key):
-        del self._data[key]
-        if self.auto_save:
-            self.save()
+        if self.is_mutable(value):
+            return mutable_proxy(obj=value, on_change=self._on_change)
 
-    def get(self, key, default=None):
-        return self._data.get(key, default)
-
-    def get_or_create(self, key, default):
-        if key in self._data:
-            return self._data[key]
-        else:
-            self._data[key] = default
-            if self.auto_save:
-                self.save()
-            return default
+        return value
 
     def __setitem__(self, key, value):
-        self._data[key] = value
+        self._obj[key] = value
+        self._on_change()
 
-        if self.auto_save:
-            self.save()
+    def __delitem__(self, key):
+        del self._obj[key]
+        self._on_change()
+
+    def __repr__(self):
+        return f"MutableProxy({repr(self._obj)})"
+
+    def __str__(self):
+        return str(self._obj)
 
     def __iter__(self):
-        return iter(self._data)
+        for item in self._obj:
+            if self.is_mutable(item):
+                yield mutable_proxy(obj=item, on_change=self._on_change)
+            else:
+                yield item
 
-    def extract_settings(self, label, auto_save=True):
-        extracted_settings = settings(auto_save=auto_save)
-        _data = self[label]
+    def __contains__(self, key):
+        return key in self._obj
 
-        from collections.abc import MutableMapping
-
-        if all(isinstance(_data, requirement) for requirement in [MutableMapping]):
-            extracted_settings._data = _data
+    @staticmethod
+    def is_mutable(obj):
+        IMMUTABLE_TYPES = (
+            int,
+            float,
+            complex,
+            str,
+            bytes,
+            bool,
+            type(None),
+            type(...),
+            tuple,
+            frozenset,
+            range,
+        )
+        if isinstance(obj, IMMUTABLE_TYPES):
+            return False
         else:
-            raise TypeError(
-                f"Ожидается объект, совместимый со словарем (MutableMapping), "
-                f"получен {type(_data).__name__}"
-            )
+            return True
 
-        extracted_settings._parent = self
-        return extracted_settings
 
-    def extract_or_create_settings(self, label, default_data=None, auto_save=True):
-        if label in self:
-            return self.extract_settings(label, auto_save)
+class settings(mutable_proxy):
+    def __init__(self, obj, auto_save_enabled=True, parent=None):
+        super().__init__(obj, self.save)
+        self.auto_save_enabled = auto_save_enabled
+        self._parent = parent
+
+    def get_or_create(self, key, default):
+        if key in self:
+            return self[key]
         else:
-            default_data = default_data or {}
-            self[label] = default_data.copy()
-            return self.extract_settings(label, auto_save)
+            self[key] = default
+            return self[key]
 
     def save(self):
-        if self._parent:
-            self._parent.save()
-        else:
-            with open(self.file_path, "w") as f:
-                json.dump(self._data, f)
+        if self.auto_save_enabled:
+            if self._parent:
+                self._parent.save()
+            else:
+                with open(self.file_path, "w") as f:
+                    json.dump(self._obj, f)
+
+    @staticmethod
+    def from_file(file_path, auto_save_enabled=True):
+        with open(file_path, "r") as f:
+            obj = json.load(f)
+            s = settings(obj, auto_save_enabled)
+            s.file_path = file_path
+            return s
+
+    @staticmethod
+    def from_settings(parent_settings, label, auto_save_enabled=True):
+        return settings(
+            obj=parent_settings.get_or_create(label,{}),
+            auto_save_enabled=auto_save_enabled,
+            parent=parent_settings,
+        )

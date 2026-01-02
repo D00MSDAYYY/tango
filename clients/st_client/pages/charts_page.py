@@ -7,8 +7,8 @@ import tango as tc
 class charts_page(_base_page):
     def __init__(self, name, settings, tango_db):
         super().__init__(name, settings)
-
-        self.tango_db = tango_db
+        print("1\n\n\n\n\n\n", settings, type(settings))
+        # self.tango_db = tango_db
         self.charts = dict()
 
     def __call__(self):
@@ -43,22 +43,23 @@ class charts_page(_base_page):
                     func()
 
     def _on_add(self):
-        tango_db = self.tango_db
+        # tango_db = self.tango_db
 
-        device_names = tango_db.get_device_exported("*")
-        device_name = st.selectbox("Select device", device_names)
-        proxy = tc.DeviceProxy(
-            "tango://" + tango_db.host_str + ":" + tango_db.port_str + "/" + device_name
-        )
+        # device_names = tango_db.get_device_exported("*")
+        # device_name = st.selectbox("Select device", device_names)
+        # proxy = tc.DeviceProxy(
+        #     "tango://" + tango_db.settings["host"] + ":" + tango_db.settings["port"] + "/" + device_name
+        # )
 
-        attribute_names = [
-            attribute.name
-            for attribute in proxy.get_attribute_config_ex([tc.constants.AllAttr])
-        ]
-        attribute_name = st.selectbox("Select attribute", attribute_names)
+        # attribute_names = [
+        #     attribute.name
+        #     for attribute in proxy.get_attribute_config_ex([tc.constants.AllAttr])
+        # ]
+        # attribute_name = st.selectbox("Select attribute", attribute_names)
 
-        if st.button("Add", type="primary"):
-            pass
+        # if st.button("Add", type="primary"):
+        #     pass
+        pass
 
     def _on_delete(self):
         pass
