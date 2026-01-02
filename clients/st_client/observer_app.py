@@ -42,7 +42,6 @@ class observer_app:
 
         tango_settings = stgs.settings.from_settings(self.settings, "tango_settings")
         tango_hosts = tango_settings.get_or_create("tango_hosts", [])
-        kkk = tango_settings.get_or_create("kkk", [])
         
         TANGO_HOST = st.selectbox(
             "Enter TANGO_HOST",

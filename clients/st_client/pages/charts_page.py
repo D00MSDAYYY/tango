@@ -7,8 +7,7 @@ import tango as tc
 class charts_page(_base_page):
     def __init__(self, name, settings, tango_db):
         super().__init__(name, settings)
-        print("1\n\n\n\n\n\n", settings, type(settings))
-        # self.tango_db = tango_db
+        self.tango_db = tango_db
         self.charts = dict()
 
     def __call__(self):
@@ -24,7 +23,6 @@ class charts_page(_base_page):
         #     self.charts[chart_name] = chart(self.db, chart_name)
 
     def _make_toolbar(self):
-        """Функциональный тулбар с реальными кнопками Streamlit"""
 
         toolbuttons = [
             ("Add", 2, self._on_add),
