@@ -1,18 +1,1 @@
-{
-    "tango_settings": {
-        "tango_hosts": [
-            {
-                "host": "127.0.0.1",
-                "port": "11000"
-            },
-            {
-                "host": "127.0.0.1",
-                "port": "11000"
-            }
-        ]
-    },
-    "charts_page_settings": {},
-    "logs_page_settings": {},
-    "system_page_settings": {},
-    "watchdogs_page_settings": {}
-}
+{"tango_settings": {"tango_hosts": [{"host": "127.0.0.1", "port": "11000", "last_used": true}]}, "charts_page_settings": {}, "logs_page_settings": {}, "system_page_settings": {}, "watchdogs_page_settings": {}}

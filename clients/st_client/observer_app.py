@@ -42,7 +42,7 @@ class observer_app:
 
         tango_settings = stgs.settings.from_settings(self.settings, "tango_settings")
         tango_hosts = tango_settings.get_or_create("tango_hosts", [])
-        
+
         TANGO_HOST = st.selectbox(
             "Enter TANGO_HOST",
             [f"{elem["host"]}:{elem["port"]}" for elem in tango_hosts],
@@ -55,9 +55,22 @@ class observer_app:
             try:
                 import tango as tc
 
-                self.tango_db = tc.Database(host, port)
-                tango_hosts.append({"host": host, "port": port})
-                # self.tango_db.settings = tango_settings
+                tango_db = tc.Database(host, port)
+                self.tango_db = tango_db
+
+                is_duplicate = False
+                for h in tango_hosts:
+                    if h["host"] == host and h["port"] == port:
+                        h["last_used"] = True
+                        is_duplicate = True
+                    else:
+                        h["last_used"] = False
+                if not is_duplicate:
+                    tango_hosts.append({"host": host, "port": port, "last_used": True})
+
+                tango_db.settings = tango_settings
+                tango_db.host = host
+                tango_db.port = port
 
                 st.rerun()
 
@@ -77,24 +90,28 @@ class observer_app:
         from pages import charts_page, logs_page, system_page, watchdogs_page
 
         from_settings = stgs.settings.from_settings
-        ssettings = self.settings
+        self_settings = self.settings
         pages = dict(
             charts_page=_make_page(
                 charts_page.charts_page(
                     "charts",
-                    from_settings(ssettings, "charts_page_settings"),
-                    self.tango_db
+                    from_settings(self_settings, "charts_page_settings"),
+                    self.tango_db,
                 )
             ),
             logs_page=_make_page(
-                logs_page.logs_page("logs", from_settings(ssettings, "logs_page_settings"))
+                logs_page.logs_page(
+                    "logs", from_settings(self_settings, "logs_page_settings")
+                )
             ),
             system_page=_make_page(
-                system_page.system_page("system", from_settings(ssettings, "system_page_settings"))
+                system_page.system_page(
+                    "system", from_settings(self_settings, "system_page_settings")
+                )
             ),
             watchdogs_page=_make_page(
                 watchdogs_page.watchdogs_page(
-                    "watchdogs", from_settings(ssettings, "watchdogs_page_settings")
+                    "watchdogs", from_settings(self_settings, "watchdogs_page_settings")
                 )
             ),
         )
