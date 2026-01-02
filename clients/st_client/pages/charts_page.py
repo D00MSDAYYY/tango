@@ -1,13 +1,14 @@
 import streamlit as st
 from pages._base_page import _base_page
 from widgets.chart import chart
+import tango as tc
 
 
 class charts_page(_base_page):
-    def __init__(self, name, db, tango_client):
-        super().__init__(name, db)
-        
-        self.tango_client = tango_client
+    def __init__(self, name, settings, tango_db):
+        super().__init__(name, settings)
+
+        self.tango_db = tango_db
         self.charts = dict()
 
     def __call__(self):
@@ -42,24 +43,34 @@ class charts_page(_base_page):
                     func()
 
     def _on_add(self):
-        attr_name = st.text_input("attribute name")
-        period_s = st.number_input("period", min_value=0.0)
+        tango_db = self.tango_db
+
+        device_names = tango_db.get_device_exported("*")
+        device_name = st.selectbox("Select device", device_names)
+        proxy = tc.DeviceProxy(
+            "tango://" + tango_db.host_str + ":" + tango_db.port_str + "/" + device_name
+        )
+
+        attribute_names = [
+            attribute.name
+            for attribute in proxy.get_attribute_config_ex([tc.constants.AllAttr])
+        ]
+        attribute_name = st.selectbox("Select attribute", attribute_names)
 
         if st.button("Add", type="primary"):
-            print("dd")
-
+            pass
 
     def _on_delete(self):
-        print("on _on_delete")
+        pass
 
     def _on_hide(self):
-        print("on _on_hide")
+        pass
 
     def _on_unhide(self):
-        print("on _on_unhide")
+        pass
 
     def _on_reorder(self):
-        print("on _on_reorder")
+        pass
 
     def _on_resize(self):
-        print("on _on_resize")
+        pass
