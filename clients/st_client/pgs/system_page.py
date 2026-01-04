@@ -1,5 +1,5 @@
 import streamlit as st
-from pages._base_page import _base_page
+from pgs._base_page import _base_page
 
 
 class system_page(_base_page):

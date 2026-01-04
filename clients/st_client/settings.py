@@ -1,34 +1,38 @@
 import json
-from typing import Any, Callable, Optional
+from typing import Any, Callable, override
 
 
 class mutable_proxy:
     def __init__(self, obj: Any, on_change: Callable):
         self._obj = obj
         self._on_change = on_change
-        self._original_id = id(obj)
 
     def __getattr__(self, name):
         attr = getattr(self._obj, name)
 
         if callable(attr):
             return self._wrap_method(attr, name)
-        elif self.is_mutable(attr):
+        elif mutable_proxy.is_mutable(attr):
             return mutable_proxy(obj=attr, on_change=self._on_change)
         return attr
 
     def _wrap_method(self, method, name):
         def wrapper(*args, **kwargs):
             result = method(*args, **kwargs)
+            if mutable_proxy.is_mutable(result):
+                return mutable_proxy(obj=result, on_change=self._on_change)
             self._on_change()
             return result
 
         return wrapper
 
+    def unwrap_from_mutable_proxy(self):
+        return self._obj
+
     def __getitem__(self, key):
         value = self._obj[key]
 
-        if self.is_mutable(value):
+        if mutable_proxy.is_mutable(value):
             return mutable_proxy(obj=value, on_change=self._on_change)
 
         return value
@@ -49,7 +53,7 @@ class mutable_proxy:
 
     def __iter__(self):
         for item in self._obj:
-            if self.is_mutable(item):
+            if mutable_proxy.is_mutable(item):
                 yield mutable_proxy(obj=item, on_change=self._on_change)
             else:
                 yield item
@@ -77,19 +81,33 @@ class mutable_proxy:
         else:
             return True
 
+    # @staticmethod
+    # def is_jsonable(obj):
+    #     try:
+    #         json.dumps(obj)
+    #         return True
+    #     except (TypeError, OverflowError):
+    #         return False
 
-class settings(mutable_proxy):
+
+# class _settings_metaclass(type):
+#     def __instancecheck__(self, instance):
+#         if hasattr(instance, '_obj') and isinstance(instance._obj, dict):
+#             return True
+#         return super().__instancecheck__(instance)
+
+
+class settings_singletone(mutable_proxy):
     def __init__(self, obj, auto_save_enabled=True, parent=None):
-        super().__init__(obj, self.save)
+        super().__init__(obj=obj, on_change=self.save)
         self.auto_save_enabled = auto_save_enabled
         self._parent = parent
+        self.file_path = None
 
-    def get_or_create(self, key, default):
-        if key in self:
-            return self[key]
-        else:
-            self[key] = default
-            return self[key]
+    # @property
+    # @override
+    # def __class__(self):
+    #     return type(self._obj)
 
     def save(self):
         if self.auto_save_enabled:
@@ -103,14 +121,6 @@ class settings(mutable_proxy):
     def from_file(file_path, auto_save_enabled=True):
         with open(file_path, "r") as f:
             obj = json.load(f)
-            s = settings(obj, auto_save_enabled)
+            s = settings_singletone(obj, auto_save_enabled)
             s.file_path = file_path
             return s
-
-    @staticmethod
-    def from_settings(parent_settings, label, auto_save_enabled=True):
-        return settings(
-            obj=parent_settings.get_or_create(label,{}),
-            auto_save_enabled=auto_save_enabled,
-            parent=parent_settings,
-        )

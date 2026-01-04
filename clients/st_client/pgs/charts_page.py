@@ -1,18 +1,19 @@
 import streamlit as st
-from pages._base_page import _base_page
+from pgs._base_page import _base_page
 from widgets.chart import chart
-import tango as tc
+import chart_builder as cb
 
 
 class charts_page(_base_page):
     def __init__(self, name, settings, tango_db):
         super().__init__(name, settings)
         self.tango_db = tango_db
-        self.charts = dict()
+        self.charts = self.settings.setdefault("charts", [])
+        print("!1!", type(self.charts))
 
     def __call__(self):
         st.set_page_config(layout="wide")
-        st.header("Charts page")
+        st.header(body="Charts page")
 
         self._make_toolbar()
 
@@ -32,38 +33,24 @@ class charts_page(_base_page):
             ("Reorder", 1, self._on_reorder),
             ("Resize", 1, self._on_resize),
         ]
-        columns = st.columns([size for (name, size, func) in toolbuttons])
+        columns = st.columns(spec=[size for (name, size, func) in toolbuttons])
 
         for column, toolbutton in zip(columns, toolbuttons):
             with column:
                 name, size, func = toolbutton
-                with st.popover(name, width="stretch"):
+                with st.popover(label=name, width="stretch"):
                     func()
 
     def _on_add(self):
-        tango_db = self.tango_db
-        tango_settings = tango_db.settings
-        tango_hosts = tango_settings["tango_hosts"]
-
-        device_names = tango_db.get_device_exported("*")
-        device_name = st.selectbox(
-            label="Select device",
-            options=device_names,
-            index=None
+        builder = cb.tango_builder(
+            existing_charts=self.settings["charts"], tango_db=self.tango_db
         )
-        if device_name:
-            proxy = tc.DeviceProxy(
-                "tango://" + tango_db.host + ":" + tango_db.port + "/" + device_name
-            )
+        new_settings = builder.get_new_chart_settings()
+        if new_settings:
+            self.charts.append(new_settings)
+            print("!2!", type(self.charts))
 
-            attribute_names = [
-                attribute.name
-                for attribute in proxy.get_attribute_config_ex([tc.constants.AllAttr])
-            ]
-            attribute_name = st.selectbox("Select attribute", attribute_names)
-
-        if st.button("Add", type="primary"):
-            pass
+            new_chart = builder.build_chart_from_settings(new_settings)
 
     def _on_delete(self):
         pass
