@@ -2,12 +2,11 @@ import streamlit as st
 from types import SimpleNamespace
 import settings as stgs
 
-
 class observer_app:
     def __init__(self):
         pass
 
-    def __call__(self):
+    def run(self):
         if self._connect_to_db() and self._connect_to_tango_db() and self._make_pages():
             pages = self.pages
             nav = st.navigation(

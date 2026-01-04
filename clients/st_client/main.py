@@ -4,6 +4,6 @@ import streamlit as st
 if __name__ == "__main__":
     if 'observer_app' not in st.session_state:
         st.session_state.observer_app = observer_app()
-        st.session_state.observer_app()
+        st.session_state.observer_app.run()
     else:
-        st.session_state.observer_app()
+        st.session_state.observer_app.run()

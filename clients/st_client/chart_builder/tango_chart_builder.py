@@ -1,31 +1,16 @@
-import abc
-import settings as stgs
-import widgets._base_chart as _bc
+from chart.chart import chart as chart
+import streamlit as st
+import tango as tc
+from chart_builder._chart_builder import _chart_builder as _chart_builder
 
 
-class builder(abc.ABC):
-    def __init__(self):
-        super().__init__()
-
-    @abc.abstractmethod
-    def get_new_chart_settings(self) -> stgs.settings | None:
-        pass
-
-    @abc.abstractmethod
-    def build_chart_from_settings(self, chart_settings) -> _bc._base_chart | None:
-        pass
-
-
-class tango_builder(builder):
-
+class tango_builder(_chart_builder):
     def __init__(self, existing_charts, tango_db):
         super().__init__()
         self.existing_charts = existing_charts
         self.tango_db = tango_db
 
     def get_new_chart_settings(self):
-        import streamlit as st
-        import tango as tc
 
         chart_name = st.text_input(label="Enter new chart name")
         if any(chart_name == c["name"] for c in self.existing_charts):
@@ -118,5 +103,6 @@ class tango_builder(builder):
                                 except Exception as e:
                                     st.warning(f"Error: {e}")
 
-    def build_chart_from_settings(self, chart_settings) -> _bc._base_chart | None:
-        pass
+    def build_chart_from_settings(self, chart_settings) -> chart.chart | None:
+        bc = chart(chart_settings["name"], None)
+        return bc

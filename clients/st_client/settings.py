@@ -81,21 +81,6 @@ class mutable_proxy:
         else:
             return True
 
-    # @staticmethod
-    # def is_jsonable(obj):
-    #     try:
-    #         json.dumps(obj)
-    #         return True
-    #     except (TypeError, OverflowError):
-    #         return False
-
-
-# class _settings_metaclass(type):
-#     def __instancecheck__(self, instance):
-#         if hasattr(instance, '_obj') and isinstance(instance._obj, dict):
-#             return True
-#         return super().__instancecheck__(instance)
-
 
 class settings_singletone(mutable_proxy):
     def __init__(self, obj, auto_save_enabled=True, parent=None):
@@ -103,11 +88,6 @@ class settings_singletone(mutable_proxy):
         self.auto_save_enabled = auto_save_enabled
         self._parent = parent
         self.file_path = None
-
-    # @property
-    # @override
-    # def __class__(self):
-    #     return type(self._obj)
 
     def save(self):
         if self.auto_save_enabled:
